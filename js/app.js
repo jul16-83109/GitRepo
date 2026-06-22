@@ -676,11 +676,17 @@ class SetlistApp {
   }
 
   async fetchLyrics(songId) {
+    // v6 debug: confirm function runs and pre is found
+    const _dbgPre = document.getElementById(`lyrics-pre-${songId}`);
+    console.log(`[Lyrics v6] fetchLyrics called, songId=${songId}, pre found=${!!_dbgPre}`);
+    if (_dbgPre) _dbgPre.textContent = `[v6] songId=${songId}, pre OK – fetching...`;
+
     const song = this.songs.find(s => s.id === songId);
     const pre  = document.getElementById(`lyrics-pre-${songId}`);
-    if (!song || !pre) return;
-
-    pre.textContent = '⏳ Suche Liedtext...';
+    if (!song || !pre) {
+      console.error('[Lyrics v6] EARLY RETURN – song:', !!song, 'pre:', !!pre);
+      return;
+    }
 
     const artist = (song.artist || '').trim();
     const title  = song.title.trim();
