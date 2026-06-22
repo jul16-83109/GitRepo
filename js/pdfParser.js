@@ -1,9 +1,7 @@
-// PDF-Parser – optimiert für Setlist-Format:
-// Spalten: Titel (bold) | Interpret | Sänger (Wes/Zaus/Julian/Andi) | Tonart
+// PDF-Parser – Setlist-Format: Titel (bold) | Interpret | Sänger | Tonart (optional)
 //
-// Strategie: pdf.js gibt Textelemente MIT x/y-Koordinaten zurück.
-// Wir gruppieren nach Zeile (y-Position) und nutzen den Sänger-Eintrag
-// als Spalten-Anker um Titel und Interpret zu trennen.
+// Bug-Fix: Bold-Titel und Regular-Text haben in pdf.js oft verschiedene y-Baselines (3–5pt).
+// Lösung: Singer-Items als Zeilen-Anker, ±8pt Toleranz statt 3pt Pre-Grouping.
 
 class PDFParser {
   constructor(onSongsImported) {
@@ -27,7 +25,6 @@ class PDFParser {
     const arrayBuffer = await file.arrayBuffer();
     const pdf = await window.pdfjsLib.getDocument({ data: arrayBuffer }).promise;
 
-    // Alle Text-Items mit Positionsdaten sammeln
     const allItems = [];
     for (let p = 1; p <= pdf.numPages; p++) {
       const page = await pdf.getPage(p);
@@ -37,8 +34,8 @@ class PDFParser {
         if (text) {
           allItems.push({
             text,
-            x: item.transform[4],   // x-Position (links → rechts)
-            y: item.transform[5],   // y-Position (pdf: unten → oben)
+            x: item.transform[4],
+            y: item.transform[5],
             page: p
           });
         }
@@ -49,93 +46,106 @@ class PDFParser {
   }
 
   parseItemsToSongs(items) {
-    // ── Schritt 1: Zeilen gruppieren (nach page + gerundeter y-Position) ──
-    const rowMap = new Map();
-    items.forEach(item => {
-      // 3px-Toleranz beim Rundung → Zeilen die leicht versetzt sind, werden zusammengefasst
-      const rowKey = `${item.page}-${Math.round(item.y / 3) * 3}`;
-      if (!rowMap.has(rowKey)) rowMap.set(rowKey, []);
-      rowMap.get(rowKey).push(item);
-    });
+    // Erkennt "Wes", "Zaus", "Julian", "Andi", "Zaus / Wes", "Wes / Julian" etc.
+    const SINGER_RE = /^(Wes|Zaus|Julian|Andi)(\s*\/\s*(Wes|Zaus|Julian|Andi))*$/i;
+    const SINGER_SINGLE_RE = /^(Wes|Zaus|Julian|Andi)$/i;
 
-    // Zeilen sortieren: page aufsteigend, innerhalb page y absteigend (= oben → unten)
-    const rows = [...rowMap.values()]
-      .map(row => row.sort((a, b) => a.x - b.x)) // innerhalb Zeile: links → rechts
-      .sort((a, b) => {
-        if (a[0].page !== b[0].page) return a[0].page - b[0].page;
-        return b[0].y - a[0].y; // höheres y = weiter oben auf der Seite
-      });
+    // Singer-Items als Zeilen-Anker
+    const singerItems = items.filter(i => SINGER_RE.test(i.text));
 
-    // ── Schritt 2: Sänger-Spalte orten ──
-    // Sänger sind immer exakt: Wes, Zaus, Julian, Andi (ggf. "Wes / Andi")
-    const SINGER_RE = /^(Wes|Zaus|Julian|Andi)$/i;
-
-    const singerXs = [];
-    rows.forEach(row => {
-      const si = row.find(i => SINGER_RE.test(i.text));
-      if (si) singerXs.push(si.x);
-    });
-
-    if (singerXs.length === 0) {
-      // Fallback: kein Sänger gefunden → text-basiertes Parsing
-      return this.parseFallback(rows);
+    if (singerItems.length === 0) {
+      return this.parseFallback(this.groupIntoRows(items, 5));
     }
 
-    // Durchschnittliche x-Position der Sänger-Spalte
-    const avgSingerX = singerXs.reduce((a, b) => a + b, 0) / singerXs.length;
+    // Avg-X der Sänger-Spalte (nur Einzel-Namen für Präzision)
+    const singles = singerItems.filter(i => SINGER_SINGLE_RE.test(i.text));
+    const xSamples = singles.length > 0 ? singles : singerItems;
+    const avgSingerX = xSamples.reduce((s, i) => s + i.x, 0) / xSamples.length;
 
-    // Trennpunkt Titel / Interpret:
-    // Titel beginnt am linken Rand (ca. x ≈ 50–60 pts für A4 mit Normalrand)
-    // Interpret beginnt bei ca. 55–65% des Abstands zwischen linkem Rand und Sänger-Spalte
-    const leftMargin = Math.min(...items.map(i => i.x)); // tatsächlicher linker Rand
-    const titleArtistSplit = leftMargin + (avgSingerX - leftMargin) * 0.6;
+    const leftMargin = Math.min(...items.map(i => i.x));
+    const titleArtistSplit = leftMargin + (avgSingerX - leftMargin) * 0.55;
 
-    // ── Schritt 3: Songs extrahieren ──
+    // 8pt Toleranz überbrückt Bold/Regular Baseline-Unterschied
+    const Y_TOL = 8;
     const songs = [];
+    const usedRows = new Set();
 
-    rows.forEach(row => {
-      // Nur Zeilen mit Sänger verarbeiten
-      const singerItem = row.find(i =>
-        SINGER_RE.test(i.text) || /^Wes\s*\/\s*Andi$/i.test(i.text)
-      );
-      if (!singerItem) return;
+    // Singer-Items oben→unten sortieren
+    [...singerItems]
+      .sort((a, b) => a.page !== b.page ? a.page - b.page : b.y - a.y)
+      .forEach(singerItem => {
+        // Deduplizierung: "Zaus / Wes" kann als zwei separate Items kommen
+        const rowKey = `${singerItem.page}-${Math.round(singerItem.y / 3) * 3}`;
+        if (usedRows.has(rowKey)) return;
+        usedRows.add(rowKey);
 
-      // Elemente in Spalten aufteilen
-      const titleItems   = row.filter(i => i.x <  titleArtistSplit);
-      const artistItems  = row.filter(i => i.x >= titleArtistSplit && i.x < singerItem.x - 5);
-      const keyItems     = row.filter(i => i.x >  singerItem.x + 20);
+        // Alle Items dieser Seite innerhalb ±8pt der Singer-Y
+        const rowItems = items
+          .filter(i => i.page === singerItem.page && Math.abs(i.y - singerItem.y) <= Y_TOL)
+          .sort((a, b) => a.x - b.x);
 
-      const title  = titleItems.map(i => i.text).join(' ').trim();
-      const artist = artistItems.map(i => i.text).join(' ').trim();
-      const key    = keyItems.map(i => i.text).join('').trim();
-      const singer = singerItem.text.trim();
+        // Singer-Text rekonstruieren (bei separaten Tokens "Zaus", "/", "Wes")
+        const singerTokens = rowItems
+          .filter(i => i.x >= singerItem.x - 5 && /^(Wes|Zaus|Julian|Andi|\/)$/i.test(i.text))
+          .map(i => i.text.trim());
+        const singer = singerTokens.length > 1
+          ? singerTokens.filter(t => t !== '/').join(' / ')
+          : singerItem.text.trim();
 
-      if (!title || title.length < 2) return;
+        // Spalten nach x-Position
+        const titleParts  = rowItems.filter(i => i.x < titleArtistSplit);
+        const artistParts = rowItems.filter(i =>
+          i.x >= titleArtistSplit && i.x < singerItem.x - 5
+        );
+        // Tonart: nur valide Key-Texte rechts der Singer-Spalte
+        const keyParts = rowItems.filter(i =>
+          i.x > singerItem.x + 20 && /^[A-Hb#m]+\d*$/.test(i.text)
+        );
 
-      songs.push({
-        id:          1000 + songs.length,
-        title,
-        artist:      artist || '',
-        key:         key    || '',
-        singer,
-        tempo:       this.inferTempo(title, artist),
-        duration:    '3:30',
-        mood:        this.inferMood(title, artist),
-        situation:   ['konzert', 'festival', 'party', 'bar'],
-        energy:      this.inferEnergy(title, artist),
-        description: artist || 'Importiert',
-        lyrics:      `(Liedtext für "${title}" noch nicht hinterlegt.\nBitte hier einfügen.)`,
-        imported:    true
+        const title  = titleParts.map(i => i.text).join(' ').trim();
+        const artist = artistParts.map(i => i.text).join(' ').trim();
+        const rawKey = keyParts.map(i => i.text).join('').trim();
+        // Tonart: aus PDF oder aus Datenbank (Lookup via Titel + Interpret)
+        const key = rawKey || this.lookupKey(title, artist);
+
+        if (!title || title.length < 2) return;
+
+        songs.push({
+          id:          1000 + songs.length,
+          title,
+          artist:      artist || '',
+          key,
+          singer,
+          tempo:       this.inferTempo(title, artist),
+          duration:    '3:30',
+          mood:        this.inferMood(title, artist),
+          situation:   ['konzert', 'festival', 'party', 'bar'],
+          energy:      this.inferEnergy(title, artist),
+          description: artist || 'Importiert',
+          lyrics:      `(Liedtext für "${title}" noch nicht hinterlegt.\nBitte hier einfügen.)`,
+          imported:    true
+        });
       });
-    });
 
     return songs;
   }
 
-  // ── Fallback: Text-basiertes Parsing wenn keine Positionsdaten ──────────
+  groupIntoRows(items, tol) {
+    const map = new Map();
+    items.forEach(i => {
+      const k = `${i.page}-${Math.round(i.y / tol) * tol}`;
+      if (!map.has(k)) map.set(k, []);
+      map.get(k).push(i);
+    });
+    return [...map.values()]
+      .map(r => r.sort((a, b) => a.x - b.x))
+      .sort((a, b) => a[0].page !== b[0].page ? a[0].page - b[0].page : b[0].y - a[0].y);
+  }
+
+  // ── Fallback: text-basiertes Parsing ─────────────────────────────────────
   parseFallback(rows) {
     const songs = [];
-    const SINGER_RE = /\b(Wes(?:\s*\/\s*Andi)?|Zaus|Julian|Andi)\b/i;
+    const SINGER_RE = /\b(Wes|Zaus|Julian|Andi)(\s*\/\s*(Wes|Zaus|Julian|Andi))?\b/i;
 
     rows.forEach(row => {
       const line = row.map(i => i.text).join(' ').trim();
@@ -145,10 +155,9 @@ class PDFParser {
       const singerIdx = line.search(SINGER_RE);
       const before    = line.slice(0, singerIdx).trim();
       const after     = line.slice(singerIdx + match[0].length).trim();
-      const key       = after.match(/^[A-Hb#m0-9]+/)?.[0] || '';
+      const rawKey    = after.match(/^[A-Hb#m]+\d*/)?.[0] || '';
 
-      // Titel / Interpret aus "before" trennen – letzten 1-3 Wörter als Interpret
-      const words = before.trim().split(/\s+/);
+      const words = before.split(/\s+/);
       let artistWords = 0;
       for (let i = words.length - 1; i >= 1; i--) {
         const w = words[i];
@@ -160,14 +169,13 @@ class PDFParser {
 
       const title  = words.slice(0, words.length - artistWords).join(' ') || before;
       const artist = words.slice(words.length - artistWords).join(' ');
-
       if (!title || title.length < 2) return;
 
       songs.push({
         id:          1000 + songs.length,
         title,
         artist,
-        key,
+        key:         rawKey || this.lookupKey(title, artist),
         singer:      match[0],
         tempo:       this.inferTempo(title, artist),
         duration:    '3:30',
@@ -183,23 +191,100 @@ class PDFParser {
     return songs;
   }
 
-  // ── Hilfsfunktionen ──────────────────────────────────────────────────────
+  // ── Tonart-Lookup via Titel + Interpret ──────────────────────────────────
+  // Fallback wenn die PDF keine Tonart-Spalte enthält.
+  lookupKey(title, artist) {
+    const t = title.toLowerCase().trim();
+    const a = (artist || '').toLowerCase().trim();
 
+    const DB = {
+      'sommer in der stadt':      'G',  'rote lippen':             'D',
+      'alice':                    'D',  'willenlos':               'D',
+      'never rains in southern':  'D',  'have you ever seen the':  'C',
+      'achy breaky heart':        'A',  'centerfold':              'D',
+      'beast of burden':          'E',  'honkey tonk women':       'G',
+      'crazy little thing':       'D',  'everybody needs':         'C',
+      'breakfast at tiffanys':    'D',  'gimme hope joana':        'C',
+      'sweet caroline':           'G',  'boiler moräna':           'G',
+      'expresso & chianti':       'C',  'mitn frosch im hois':     'G',
+      'fürstenfeld':              'G',  'ham kummst':              'G',
+      'here i go again':          'C',  'sweet home alabama':      'D',
+      '500 miles':                'D',  'bobfahrer':               'G',
+      'fliegerlied':              'G',  'joana':                   'G',
+      'cordula grün':             'G',  'schmidtchen schleicher':  'C',
+      'ein bett im kornfeld':     'G',  'viva colonia':            'C',
+      'weiß der geier':           'G',  'hey baby':                'G',
+      'marmor stein':             'G',  'wahnsinn':                'A',
+      'bella napoli':             'Am', 'brenna duads guad':       'G',
+      'skandal im sperrbezrik':   'G',  'bella ciao':              'Am',
+      'hang on sloopy':           'G',  'all in':                  'G',
+      'hulapalu':                 'E',  'country roads':           'G',
+      'start me up':              'G',  'rockin all over the':     'G',
+      'i want you to want me':    'A',  'mir san boarische band':  'G',
+      'schickeria':               'G',  'kompliment':              'G',
+      'narcotic':                 'Dm', 'proud mary':              'D',
+      'elvis medley':             'G',  'devil in disguise':       'G',
+      'rockstar':                 'G',  'runaway':                 'A',
+      'highway to hell':          'A',  'shook me allnight long':  'A',
+      'shut up and dance':        'D',  'sex is on fire':          'C',
+      'westerland':               'D',  'pocahontas':              'C',
+      '1001 nacht':               'Am', 'verdammt ich lieb dich':  'C',
+      'ohne dich schlaf ich':     'F',  'purple rain':             'Bb',
+      'knocking on heavens':      'G',  "sweet child o'mine":      'Eb',
+      'with or without':          'D',  'angels':                  'G',
+      'bad moon risin':           'C',  'du entschuldige':         'C',
+      'eine neue liebe':          'C',  'haberfeldtreiber':        'Am',
+      'himbeereis zum':           'G',  'i sing a liad':           'G',
+      'im wagen vor mir':         'G',  'mellau':                  'G',
+      'pina colada':              'G',  'marihuanabam':            'G',
+      'schifoan':                 'G',  '40 jahre die flippers':   'C',
+      'so a saudummer dog':       'G',  'gib des bandl':           'G',
+      'zwickts mi':               'G',  'schmutzig liebe':         'G',
+      'es lebe der sport':        'G',  'rote pferd':              'G',
+      'cowboy und indianer':      'G',  'bella ciao':              'Am',
+    };
+
+    if (DB[t]) return DB[t];
+
+    // Prefix-Match (z.B. "Rockin all over the World" → treffer)
+    for (const [k, v] of Object.entries(DB)) {
+      if (t.startsWith(k) || (t.length >= 8 && k.startsWith(t.slice(0, t.length - 2))))
+        return v;
+    }
+
+    // Interpret-Fallback
+    if (/ac.?dc/.test(a))                    return 'A';
+    if (/rolling stones/.test(a))            return 'G';
+    if (/ccr|creedence/.test(a))             return 'G';
+    if (/spider.murphy/.test(a))             return 'G';
+    if (/\bsts\b/.test(a))                   return 'G';
+    if (/queen/.test(a))                     return 'G';
+    if (/elvis presley/.test(a))             return 'G';
+    if (/bon jovi/.test(a))                  return 'A';
+    if (/guns.?n.?roses/.test(a))            return 'G';
+    if (/\bu2\b/.test(a))                    return 'D';
+    if (/whitesnake/.test(a))                return 'C';
+    if (/lynyrd skynyrd/.test(a))            return 'D';
+
+    return '';
+  }
+
+  // ── Mood / Energy / Tempo ────────────────────────────────────────────────
   inferMood(title, artist = '') {
     const t = (title + ' ' + artist).toLowerCase();
     const moods = new Set();
 
-    if (/fire|hell|thunder|wild|crazy|storm|rage|shake|acdc|rock|pump/.test(t))
+    if (/fire|hell|thunder|wild|crazy|storm|rage|shake|acdc|rock|pump|skandal/.test(t))
       moods.add('energiegeladen'), moods.add('kraftvoll');
-    if (/love|heart|rain|baby|darling|angel|heaven|beautiful|ohne dich|purple/.test(t))
+    if (/love|heart|rain|baby|darling|angel|heaven|beautiful|ohne dich|purple|liebe/.test(t))
       moods.add('romantisch');
-    if (/home|sweet|country|heim|land|colonia|prost|bier|viva|hulapalu/.test(t))
+    if (/home|sweet|country|heim|land|colonia|viva|hulapalu|kornfeld|schifoan|fürstenfeld/.test(t))
       moods.add('feierlich');
-    if (/alone|dark|night|pain|cry|sad|ohne|lost|nacht|dunkel|schlaf ich/.test(t))
+    if (/alone|dark|night|pain|cry|sad|ohne|lost|nacht|dunkel|schlaf ich|westerland/.test(t))
       moods.add('melancholisch');
-    if (/dance|party|yeah|celebrate|tonight|kornfeld|shut up|rock all|everybody|achy/.test(t))
+    if (/dance|party|yeah|celebrate|tonight|kornfeld|shut up|rock all|everybody|achy|fliegerlied|wahnsinn/.test(t))
       moods.add('ausgelassen');
-    if (/slow|soft|peaceful|still|ruhig|leise|tender|easy/.test(t))
+    if (/slow|soft|peaceful|still|ruhig|leise|tender|easy|country roads|angels/.test(t))
       moods.add('entspannt');
 
     return moods.size > 0 ? [...moods] : ['feierlich', 'energiegeladen'];
@@ -207,30 +292,19 @@ class PDFParser {
 
   inferEnergy(title, artist = '') {
     const t = (title + ' ' + artist).toLowerCase();
-
-    if (/acdc|highway to hell|shook me|sturmwind|thunder|rage|metal|hard rock|whitesnake|guns/.test(t))
-      return 9;
-    if (/dance|party|yeah|viva|prost|everybody|achy breaky|rockin|all over/.test(t))
-      return 8;
-    if (/fire|wild|crazy|narcotic|rausch|pump|adrenalin|shut up/.test(t))
-      return 8;
-    if (/purple rain|without|alone|ohne dich|schlaf|slow|tender|soft|leise/.test(t))
-      return 3;
-    if (/rain|heart|love|darling|angel/.test(t))
-      return 4;
-    if (/wahnsinn|proud mary|sweet home|expresso|chianti|weiß der geier/.test(t))
-      return 6;
-    if (/honkey tonk|sweet child|here i go|rockin|highway/.test(t))
-      return 7;
+    if (/acdc|highway to hell|shook me|thunder|rage|metal|whitesnake|guns/.test(t)) return 9;
+    if (/dance|party|viva|everybody|achy breaky|rockin|fliegerlied|wahnsinn|shut up/.test(t)) return 8;
+    if (/fire|wild|crazy|narcotic|pump|skandal|kompliment/.test(t)) return 8;
+    if (/purple rain|without|alone|ohne dich|schlaf|westerland|angels/.test(t)) return 3;
+    if (/rain|heart|love|darling|angel|country roads|schifoan/.test(t)) return 4;
+    if (/wahnsinn|proud mary|sweet home|expresso|chianti|weiß der geier|ham kummst/.test(t)) return 6;
+    if (/honkey tonk|sweet child|here i go|rockin|highway|runaway/.test(t)) return 7;
     return 6;
   }
 
   inferTempo(title, artist = '') {
-    const energy = this.inferEnergy(title, artist);
-    // Grobe Tempo-Schätzung aus Energie
-    const base = 80;
-    const range = 80;
-    return Math.round(base + (energy / 10) * range);
+    const e = this.inferEnergy(title, artist);
+    return Math.round(80 + (e / 10) * 80);
   }
 }
 

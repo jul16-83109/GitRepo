@@ -715,13 +715,36 @@ body {
 .modal-badges strong { color: var(--text-primary); min-width: 80px; }
 
 /* Liedtext */
+.lyrics-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
 .modal-lyrics h3 {
   font-size: 0.85rem;
   font-weight: 600;
   color: var(--accent);
-  margin-bottom: 12px;
   text-transform: uppercase;
   letter-spacing: 0.08em;
+  margin: 0;
+}
+
+.lyrics-reload-btn {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-sec);
+  font-size: 0.75rem;
+  padding: 4px 10px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-family: 'Inter', sans-serif;
+  transition: all 0.18s;
+}
+.lyrics-reload-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
 }
 
 .modal-lyrics pre {
