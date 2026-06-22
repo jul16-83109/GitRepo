@@ -54,7 +54,9 @@ class PDFParser {
     const singerItems = items.filter(i => SINGER_RE.test(i.text));
 
     if (singerItems.length === 0) {
-      return this.parseFallback(this.groupIntoRows(items, 5));
+      // No singer column – try generic formats
+      const rows = this.groupIntoRows(items, 5);
+      return this.parseGenericFormat(rows);
     }
 
     // Avg-X der Sänger-Spalte (nur Einzel-Namen für Präzision)
@@ -105,26 +107,12 @@ class PDFParser {
         const title  = titleParts.map(i => i.text).join(' ').trim();
         const artist = artistParts.map(i => i.text).join(' ').trim();
         const rawKey = keyParts.map(i => i.text).join('').trim();
-        // Tonart: aus PDF oder aus Datenbank (Lookup via Titel + Interpret)
-        const key = rawKey || this.lookupKey(title, artist);
 
         if (!title || title.length < 2) return;
 
-        songs.push({
-          id:          1000 + songs.length,
-          title,
-          artist:      artist || '',
-          key,
-          singer,
-          tempo:       this.inferTempo(title, artist),
-          duration:    '3:30',
-          mood:        this.inferMood(title, artist),
-          situation:   ['konzert', 'festival', 'party', 'bar'],
-          energy:      this.inferEnergy(title, artist),
-          description: artist || 'Importiert',
-          lyrics:      `(Liedtext für "${title}" noch nicht hinterlegt.\nBitte hier einfügen.)`,
-          imported:    true
-        });
+        const s = this._makeSong(songs.length, title, artist, singer);
+        if (rawKey) s.key = rawKey; // prefer explicit PDF key over lookup
+        songs.push(s);
       });
 
     return songs;
@@ -140,6 +128,71 @@ class PDFParser {
     return [...map.values()]
       .map(r => r.sort((a, b) => a.x - b.x))
       .sort((a, b) => a[0].page !== b[0].page ? a[0].page - b[0].page : b[0].y - a[0].y);
+  }
+
+  // Dispatcher for PDFs without a singer column
+  parseGenericFormat(rows) {
+    const dashRows = rows.filter(r => r.some(i => i.text === '-' || i.text === '–'));
+    if (dashRows.length >= 2) return this.parseDashFormat(rows);
+    // Last resort: each non-empty row is just a title
+    return this.parseTitlesOnly(rows);
+  }
+
+  // Format: "Title - Artist"  (dash separator, each line = one song)
+  parseDashFormat(rows) {
+    const songs = [];
+    // Skip rows that look like headers/footers (no dash, suspiciously few/many tokens)
+    const HEADER_RE = /^(setlist|page|seite|datum|date|\d+$)/i;
+
+    rows.forEach(row => {
+      const sorted = [...row].sort((a, b) => a.x - b.x);
+      const dashIdx = sorted.findIndex(i => i.text === '-' || i.text === '–');
+
+      if (dashIdx < 1) return; // no dash → likely a header/section label, skip
+
+      const titleTokens  = sorted.slice(0, dashIdx).map(i => i.text);
+      const artistTokens = sorted.slice(dashIdx + 1).map(i => i.text);
+
+      const title  = titleTokens.join(' ').trim();
+      const artist = artistTokens.join(' ').trim();
+
+      if (!title || title.length < 2) return;
+      if (HEADER_RE.test(title))      return;
+
+      songs.push(this._makeSong(songs.length, title, artist, ''));
+    });
+
+    return songs;
+  }
+
+  // Last-resort: treat every non-trivial row as a title with no artist
+  parseTitlesOnly(rows) {
+    const songs = [];
+    const SKIP_RE = /^(setlist|page|seite|\d+\.?\s)/i;
+    rows.forEach(row => {
+      const line = row.map(i => i.text).join(' ').trim();
+      if (!line || line.length < 2 || SKIP_RE.test(line)) return;
+      songs.push(this._makeSong(songs.length, line, '', ''));
+    });
+    return songs;
+  }
+
+  _makeSong(idx, title, artist, singer) {
+    return {
+      id:          1000 + idx,
+      title,
+      artist:      artist || '',
+      key:         this.lookupKey(title, artist),
+      singer:      singer || '',
+      tempo:       this.inferTempo(title, artist),
+      duration:    '3:30',
+      mood:        this.inferMood(title, artist),
+      situation:   ['konzert', 'festival', 'party', 'bar'],
+      energy:      this.inferEnergy(title, artist),
+      description: artist || 'Importiert',
+      lyrics:      `(Liedtext für "${title}" noch nicht hinterlegt.\nBitte hier einfügen.)`,
+      imported:    true,
+    };
   }
 
   // ── Fallback: text-basiertes Parsing ─────────────────────────────────────
@@ -171,21 +224,9 @@ class PDFParser {
       const artist = words.slice(words.length - artistWords).join(' ');
       if (!title || title.length < 2) return;
 
-      songs.push({
-        id:          1000 + songs.length,
-        title,
-        artist,
-        key:         rawKey || this.lookupKey(title, artist),
-        singer:      match[0],
-        tempo:       this.inferTempo(title, artist),
-        duration:    '3:30',
-        mood:        this.inferMood(title, artist),
-        situation:   ['konzert', 'festival', 'party', 'bar'],
-        energy:      this.inferEnergy(title, artist),
-        description: artist || 'Importiert',
-        lyrics:      `(Liedtext für "${title}" noch nicht hinterlegt.)`,
-        imported:    true
-      });
+      const s = this._makeSong(songs.length, title, artist, match[0]);
+      if (rawKey) s.key = rawKey;
+      songs.push(s);
     });
 
     return songs;
