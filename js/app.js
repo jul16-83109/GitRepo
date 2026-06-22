@@ -508,20 +508,21 @@ class SetlistApp {
     });
   }
 
-  // Builds a dynamic energy plan for count songs.
-  // Pattern: warm-up → build → peaks → breather → second wind → emotional → finale
+  // Returns target energy (1–10) for each slot.
+  // Arc: opener → build → peak → breather → second wind → emotional → finale
   buildEnergyPlan(count) {
     const plan = [];
     for (let i = 0; i < count; i++) {
-      const p = count <= 1 ? 1 : i / (count - 1); // 0.0 → 1.0
-      let bucket;
-      if      (p < 0.10) bucket = 'mid';   // opener: don't start too hard
-      else if (p < 0.55) bucket = 'high';  // main body: high energy
-      else if (p < 0.65) bucket = 'mid';   // mid-set breather
-      else if (p < 0.78) bucket = 'high';  // second wind
-      else if (p < 0.90) bucket = 'low';   // emotional / slow moment
-      else               bucket = 'high';  // finale: go out strong
-      plan.push(bucket);
+      const p = count <= 1 ? 1 : i / (count - 1);
+      let e;
+      if      (p < 0.08) e = 6;   // opener: punchy but not maximum
+      else if (p < 0.25) e = 8;   // build
+      else if (p < 0.52) e = 9;   // first peak
+      else if (p < 0.62) e = 5;   // mid-set breather
+      else if (p < 0.77) e = 8;   // second wind
+      else if (p < 0.88) e = 3;   // emotional moment
+      else               e = 9;   // big finale
+      plan.push(e);
     }
     return plan;
   }
@@ -530,44 +531,31 @@ class SetlistApp {
     const count = Math.max(1, this.userProfile.count || 10);
     scored.sort((a, b) => b.score - a.score);
 
-    const buckets = { low: [], mid: [], high: [] };
-    scored.forEach(({ song, score }) => {
-      if      (song.energy <= 4) buckets.low.push({ song, score });
-      else if (song.energy <= 7) buckets.mid.push({ song, score });
-      else                       buckets.high.push({ song, score });
+    // Draw from top candidates to preserve relevance
+    const pool    = scored.slice(0, Math.min(scored.length, count * 2 + 10));
+    const plan    = this.buildEnergyPlan(count);
+    const selected = [];
+    const usedIds  = new Set();
+
+    plan.forEach(targetEnergy => {
+      let best = null;
+      let bestCost = Infinity;
+      for (const { song, score } of pool) {
+        if (usedIds.has(song.id)) continue;
+        // Energy match is primary; score breaks ties within same energy distance
+        const cost = Math.abs(song.energy - targetEnergy) * 20 - score;
+        if (cost < bestCost) { bestCost = cost; best = song; }
+      }
+      if (best) { selected.push(best); usedIds.add(best.id); }
     });
 
-    // Fallback priority when preferred bucket is empty
-    const fallbacks = {
-      high: ['high', 'mid', 'low'],
-      mid:  ['mid',  'high', 'low'],
-      low:  ['low',  'mid',  'high'],
-    };
-
-    const plan      = this.buildEnergyPlan(count);
-    const selected  = [];
-    const usedIds   = new Set();
-
-    plan.forEach(bucket => {
-      for (const b of fallbacks[bucket]) {
-        const pool = buckets[b].filter(({ song }) => !usedIds.has(song.id));
-        if (pool.length === 0) continue;
-        pool.sort((a, z) => z.score - a.score);
-        selected.push(pool[0].song);
-        usedIds.add(pool[0].song.id);
-        break;
+    // Fill any remaining slots from full list
+    scored.forEach(({ song }) => {
+      if (selected.length < count && !usedIds.has(song.id)) {
+        selected.push(song);
+        usedIds.add(song.id);
       }
     });
-
-    // Fill any remaining slots (can happen if all buckets depleted for a slot)
-    if (selected.length < count) {
-      scored.forEach(({ song }) => {
-        if (selected.length < count && !usedIds.has(song.id)) {
-          selected.push(song);
-          usedIds.add(song.id);
-        }
-      });
-    }
 
     return selected.slice(0, count);
   }
@@ -606,9 +594,14 @@ class SetlistApp {
       card.className = 'setlist-card';
       card.style.animationDelay = `${i * 0.07}s`;
 
-      let dots = '<div class="energy-dots">';
-      for (let j = 1; j <= 10; j++) dots += `<div class="dot${j <= song.energy ? ' active' : ''}"></div>`;
-      dots += '</div><small>Energie</small>';
+      // Equalizer bar heights: arc shape (taller in the middle)
+      const EQ_H = [38, 52, 66, 78, 88, 90, 80, 66, 50, 36];
+      let bars = '<div class="energy-bars">';
+      for (let j = 1; j <= 10; j++) {
+        bars += `<div class="energy-bar${j <= song.energy ? ' active' : ''}" style="height:${EQ_H[j-1]}%"></div>`;
+      }
+      bars += '</div>';
+      const dots = `<div class="energy-display">${bars}<small>${song.energy}/10 Energie</small></div>`;
 
       const keyBadge   = song.key    ? `<span class="song-key">🎵 ${song.key}</span>` : '';
       const genreBadge = song._genre ? `<span class="song-genre">${song._genre}</span>` : '';
@@ -628,7 +621,7 @@ class SetlistApp {
           <div class="song-badges">${moodBadge}${genreBadge}</div>
         </div>
         <div class="song-right">
-          <div class="energy-display">${dots}</div>
+          ${dots}
           <button class="detail-btn" onclick="app.openSongDetail(${song.id})">Details</button>
         </div>`;
       container.appendChild(card);
@@ -692,7 +685,7 @@ class SetlistApp {
     const artist = (song.artist || '').trim();
     const title  = song.title.trim();
 
-    // Primary: lrclib.net (reliable, CORS-enabled, returns plainLyrics)
+    // 1. lrclib.net exact lookup
     try {
       const res = await fetch(
         `https://lrclib.net/api/get?artist_name=${encodeURIComponent(artist)}&track_name=${encodeURIComponent(title)}`
@@ -700,30 +693,35 @@ class SetlistApp {
       if (res.ok) {
         const data = await res.json();
         const text = data.plainLyrics || data.syncedLyrics;
-        if (text && text.trim()) {
-          song.lyrics = text.trim();
-          pre.textContent = song.lyrics;
-          return;
+        if (text && text.trim()) { song.lyrics = text.trim(); pre.textContent = song.lyrics; return; }
+      }
+    } catch { }
+
+    // 2. lrclib.net free-text search (handles artist name mismatches)
+    try {
+      const q   = encodeURIComponent(`${title}${artist ? ' ' + artist : ''}`);
+      const res = await fetch(`https://lrclib.net/api/search?q=${q}`);
+      if (res.ok) {
+        const results = await res.json();
+        if (Array.isArray(results) && results.length > 0) {
+          const text = results[0].plainLyrics || results[0].syncedLyrics;
+          if (text && text.trim()) { song.lyrics = text.trim(); pre.textContent = song.lyrics; return; }
         }
       }
-    } catch { /* try fallback */ }
+    } catch { }
 
-    // Fallback: lyrics.ovh
+    // 3. lyrics.ovh fallback
     try {
       const a   = encodeURIComponent(artist || 'unknown');
       const t   = encodeURIComponent(title);
       const res = await fetch(`https://api.lyrics.ovh/v1/${a}/${t}`);
       if (res.ok) {
         const data = await res.json();
-        if (data.lyrics && data.lyrics.trim()) {
-          song.lyrics = data.lyrics.trim();
-          pre.textContent = song.lyrics;
-          return;
-        }
+        if (data.lyrics && data.lyrics.trim()) { song.lyrics = data.lyrics.trim(); pre.textContent = song.lyrics; return; }
       }
-    } catch { /* all sources failed */ }
+    } catch { }
 
-    pre.textContent = `(Kein Liedtext gefunden für „${song.title}" – bitte manuell einfügen.)`;
+    pre.textContent = `(Kein Liedtext online verfügbar für „${song.title}" – bitte hier einfügen.)`;
   }
 
   closeModal() {
