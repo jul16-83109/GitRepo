@@ -3,65 +3,100 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Fogelwuid – Setlist Generator</title>
-  <meta name="description" content="Stimmungsbasierter Setlist-Generator für Fogelwuid" />
+  <title>Setlist Generator</title>
+  <meta name="description" content="Stimmungsbasierter Setlist-Generator für Bands" />
+
+  <!-- Styles -->
   <link rel="stylesheet" href="css/style.css" />
+
+  <!-- pdf.js CDN -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 </head>
 <body>
+
+  <!-- ══════════════════════════════════════════
+       HEADER
+  ════════════════════════════════════════════ -->
   <header class="site-header">
     <div class="header-inner">
-      <a href="#" class="logo-wrap" title="Fogelwuid">
-        <img
-          class="logo-img"
-          src="https://fogelwuid.de/wp-content/uploads/fogelwuid-logo-white.png"
-          alt="Fogelwuid Logo"
-          onerror="this.style.display='none'; document.getElementById('logo-fallback').style.display='flex';"
-        />
-        <div id="logo-fallback" class="logo-svg-fallback" style="display:none">
-          <svg class="logo-bird" width="36" height="36" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-            <path d="M18 4 C12 4 7 8 6 14 L3 12 C5 18 10 20 14 19 L14 22 C14 26 16 30 18 32 C20 30 22 26 22 22 L22 19 C26 20 31 18 33 12 L30 14 C29 8 24 4 18 4Z" fill="currentColor" opacity="0.9"/>
-            <circle cx="13" cy="10" r="1.5" fill="#0f0e0d"/>
-            <circle cx="23" cy="10" r="1.5" fill="#0f0e0d"/>
-            <path d="M6 14 C2 10 1 6 4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-            <path d="M30 14 C34 10 35 6 32 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-          </svg>
-          <div>
-            <div class="logo-text">Fogelwuid</div>
-            <div class="header-subtitle">Setlist Generator</div>
-          </div>
-        </div>
-        <div id="logo-title-wrap">
-          <div class="header-subtitle">Setlist Generator</div>
+      <a href="#" class="logo-wrap" title="Setlist Generator">
+        <svg class="logo-icon" width="38" height="38" viewBox="0 0 38 38" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <!-- Clipboard body -->
+          <rect x="7" y="9" width="24" height="26" rx="3" fill="currentColor" opacity="0.15" stroke="currentColor" stroke-width="1.8"/>
+          <!-- Clipboard clip -->
+          <rect x="14" y="6" width="10" height="6" rx="2" fill="currentColor" stroke="currentColor" stroke-width="1.6"/>
+          <!-- Lines (setlist rows) -->
+          <line x1="13" y1="19" x2="25" y2="19" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+          <line x1="13" y1="24" x2="25" y2="24" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+          <line x1="13" y1="29" x2="20" y2="29" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+          <!-- Music note on last line -->
+          <circle cx="29" cy="31" r="2.2" fill="currentColor"/>
+          <line x1="31.2" y1="31" x2="31.2" y2="25" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+          <line x1="31.2" y1="25" x2="33.5" y2="26.2" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+        </svg>
+        <div class="logo-title-block">
+          <div class="logo-name">Setlist Generator</div>
+          <div class="header-subtitle">Deine Setlist. Dein Sound.</div>
         </div>
       </a>
-      <div id="song-count" class="song-count-badge">30 Songs in der Datenbank</div>
+
+      <div id="song-count" class="song-count-badge">0 Songs geladen</div>
     </div>
   </header>
 
+  <!-- ══════════════════════════════════════════
+       HAUPT-LAYOUT
+  ════════════════════════════════════════════ -->
   <main class="main">
     <div class="app-grid">
+
+      <!-- ─────────────────────────────────────
+           LINKE SPALTE: Chat
+      ───────────────────────────────────────── -->
       <section class="panel">
-        <div class="panel-title"><span>🎸</span> Setlist-Assistent</div>
+        <div class="panel-title">
+          <span>🎸</span> Setlist-Assistent
+        </div>
+
         <div class="chat-window">
-          <div id="chat-messages" class="chat-messages"></div>
+          <div id="chat-messages" class="chat-messages">
+            <!-- Nachrichten werden per JS eingefügt -->
+          </div>
+
           <div class="chat-input-row">
-            <input id="chat-input" type="text" placeholder="Tippe hier..." autocomplete="off" autocorrect="off" spellcheck="false" />
-            <button id="send-btn" title="Senden" aria-label="Senden">➤</button>
+            <input
+              id="chat-input"
+              type="text"
+              placeholder="Tippe hier..."
+              autocomplete="off"
+              autocorrect="off"
+              spellcheck="false"
+            />
+            <button id="send-btn" title="Senden" aria-label="Senden">
+              ➤
+            </button>
           </div>
         </div>
       </section>
 
+      <!-- ─────────────────────────────────────
+           RECHTE SPALTE: PDF-Upload
+      ───────────────────────────────────────── -->
       <aside>
         <section class="panel upload-panel">
-          <div class="panel-title"><span>📄</span> Setlist importieren</div>
+          <div class="panel-title">
+            <span>📄</span> Setlist importieren
+          </div>
+
           <div id="upload-area" class="upload-area" role="button" tabindex="0" aria-label="PDF hochladen">
             <div class="upload-icon">📂</div>
             <div class="upload-label">PDF-Setlist hochladen</div>
             <div class="upload-hint">Klicken oder Datei hineinziehen</div>
             <input id="pdf-input" type="file" accept=".pdf" style="display:none" />
           </div>
+
           <div id="upload-status" class="upload-status"></div>
+
           <div class="format-hint">
             <strong>Unterstützte Formate:</strong>
             Nummerierte Listen (1. Song), Aufzählungen (• Song),
@@ -70,43 +105,54 @@
           </div>
         </section>
       </aside>
-    </div>
 
+    </div><!-- /app-grid -->
+
+    <!-- ──────────────────────────────────────
+         SETLIST ERGEBNIS
+    ─────────────────────────────────────────── -->
     <section id="setlist-section">
-      <div id="setlist-container"></div>
+      <div id="setlist-container">
+        <!-- Wird per JS befüllt -->
+      </div>
     </section>
+
   </main>
 
+  <!-- ══════════════════════════════════════════
+       SONG-DETAIL MODAL
+  ════════════════════════════════════════════ -->
   <div id="song-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modal-heading">
     <div class="modal">
       <div class="modal-header">
         <span class="modal-header-title" id="modal-heading">Song Details</span>
         <button id="modal-close" aria-label="Schließen">✕</button>
       </div>
-      <div id="modal-content"></div>
+      <div id="modal-content">
+        <!-- Wird per JS befüllt -->
+      </div>
     </div>
   </div>
 
+  <!-- ══════════════════════════════════════════
+       TOAST NOTIFICATION
+  ════════════════════════════════════════════ -->
   <div id="toast" role="status" aria-live="polite"></div>
 
+  <!-- ══════════════════════════════════════════
+       FOOTER
+  ════════════════════════════════════════════ -->
   <footer>
-    <p>Fogelwuid Setlist Generator &nbsp;·&nbsp; <a href="https://fogelwuid.de" target="_blank" rel="noopener">fogelwuid.de</a></p>
+    <p>Setlist Generator &nbsp;·&nbsp; PDF hochladen &amp; loslegen</p>
   </footer>
 
+  <!-- ══════════════════════════════════════════
+       SCRIPTS
+  ════════════════════════════════════════════ -->
   <script src="js/songs.js"></script>
   <script src="js/pdfParser.js"></script>
   <script src="js/app.js"></script>
-  <script>
-    const logoImg = document.querySelector('.logo-img');
-    const logoTitleWrap = document.getElementById('logo-title-wrap');
-    if (logoImg) {
-      logoImg.addEventListener('load', () => { document.getElementById('logo-fallback').style.display = 'none'; });
-      logoImg.addEventListener('error', () => {
-        logoImg.style.display = 'none';
-        logoTitleWrap.style.display = 'none';
-        document.getElementById('logo-fallback').style.display = 'flex';
-      });
-    }
-  </script>
+
+
 </body>
 </html>
