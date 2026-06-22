@@ -108,9 +108,9 @@ class SetlistApp {
   }
 
   // =====================================================================
-  // ITUNES METADATA ENRICHMENT
-  // Uses iTunes Search API (free, no key, CORS-enabled) to get real genre
-  // and duration data, then improves mood/energy classification.
+  // METADATA ENRICHMENT
+  // Deezer: real BPM + genre. iTunes: genre + duration fallback.
+  // All fetches are best-effort; failures are silently ignored.
   // =====================================================================
 
   async enrichSongsInBackground(statusEl) {
@@ -121,28 +121,14 @@ class SetlistApp {
     if (toEnrich.length === 0) { this._enriching = false; return; }
 
     let done = 0;
-    const BATCH = 5;   // concurrent requests
-    const DELAY = 120; // ms between batches (iTunes rate limit)
+    const BATCH = 3;   // 3 songs × ~3 requests each ≈ 9 concurrent
+    const DELAY = 300; // ms between batches
 
     for (let i = 0; i < toEnrich.length; i += BATCH) {
       const batch = toEnrich.slice(i, i + BATCH);
 
       await Promise.allSettled(batch.map(async song => {
-        try {
-          const q   = encodeURIComponent(`${song.title} ${song.artist || ''}`);
-          const res = await fetch(`https://itunes.apple.com/search?term=${q}&entity=song&limit=1&media=music`);
-          if (!res.ok) throw new Error();
-          const data = await res.json();
-
-          if (data.results && data.results[0]) {
-            const t = data.results[0];
-            if (t.primaryGenreName) this.applyGenre(song, t.primaryGenreName);
-            if (t.trackTimeMillis)  {
-              const s = Math.round(t.trackTimeMillis / 1000);
-              song.duration = `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
-            }
-          }
-        } catch { /* skip – enrichment is best-effort */ }
+        try { await this.enrichSong(song); } catch { /* best-effort */ }
         song._enriched = true;
         done++;
       }));
@@ -164,6 +150,50 @@ class SetlistApp {
     this._enriching = false;
   }
 
+  async enrichSong(song) {
+    const q = encodeURIComponent(`${song.title} ${song.artist || ''}`);
+
+    // Deezer: real BPM + genre (two-step: search → track detail)
+    try {
+      const r1 = await fetch(`https://api.deezer.com/search?q=${q}&limit=1`);
+      if (r1.ok) {
+        const d1 = await r1.json();
+        if (d1.data && d1.data[0]) {
+          const trackId = d1.data[0].id;
+          const r2 = await fetch(`https://api.deezer.com/track/${trackId}`);
+          if (r2.ok) {
+            const d2 = await r2.json();
+            if (d2.bpm && d2.bpm > 40) {
+              song.tempo      = Math.round(d2.bpm);
+              song._bpmSource = 'deezer';
+            }
+            if (d2.genres && d2.genres.data && d2.genres.data[0]) {
+              this.applyGenre(song, d2.genres.data[0].name);
+            }
+          }
+        }
+      }
+    } catch { /* CORS or network – fall through to iTunes */ }
+
+    // iTunes: genre + duration (always runs, supplements Deezer data)
+    try {
+      const res = await fetch(
+        `https://itunes.apple.com/search?term=${q}&entity=song&limit=1&media=music`
+      );
+      if (res.ok) {
+        const data = await res.json();
+        if (data.results && data.results[0]) {
+          const t = data.results[0];
+          if (t.primaryGenreName && !song._genre) this.applyGenre(song, t.primaryGenreName);
+          if (t.trackTimeMillis) {
+            const s = Math.round(t.trackTimeMillis / 1000);
+            song.duration = `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+          }
+        }
+      }
+    } catch { /* skip */ }
+  }
+
   applyGenre(song, genre) {
     const g = genre.toLowerCase();
 
@@ -183,8 +213,8 @@ class SetlistApp {
       if (re.test(g)) { song.energy = Math.round((song.energy + e) / 2); break; }
     }
 
-    // Recalculate tempo from updated energy
-    song.tempo = Math.round(80 + (song.energy / 10) * 80);
+    // Recalculate tempo from energy only when we don't have a real BPM
+    if (!song._bpmSource) song.tempo = Math.round(80 + (song.energy / 10) * 80);
 
     // Genre → mood enrichment
     const moodByGenre = [
@@ -659,22 +689,41 @@ class SetlistApp {
 
     pre.textContent = '⏳ Suche Liedtext...';
 
-    try {
-      const artist = encodeURIComponent((song.artist || 'unknown').trim());
-      const title  = encodeURIComponent(song.title.trim());
-      const res    = await fetch(`https://api.lyrics.ovh/v1/${artist}/${title}`);
-      if (!res.ok) throw new Error();
-      const data = await res.json();
+    const artist = (song.artist || '').trim();
+    const title  = song.title.trim();
 
-      if (data.lyrics && data.lyrics.trim()) {
-        song.lyrics = data.lyrics.trim();
-        pre.textContent = song.lyrics;
-      } else {
-        pre.textContent = `(Kein Liedtext gefunden für „${song.title}")`;
+    // Primary: lrclib.net (reliable, CORS-enabled, returns plainLyrics)
+    try {
+      const res = await fetch(
+        `https://lrclib.net/api/get?artist_name=${encodeURIComponent(artist)}&track_name=${encodeURIComponent(title)}`
+      );
+      if (res.ok) {
+        const data = await res.json();
+        const text = data.plainLyrics || data.syncedLyrics;
+        if (text && text.trim()) {
+          song.lyrics = text.trim();
+          pre.textContent = song.lyrics;
+          return;
+        }
       }
-    } catch {
-      pre.textContent = `(Liedtext nicht verfügbar – bitte manuell einfügen.)`;
-    }
+    } catch { /* try fallback */ }
+
+    // Fallback: lyrics.ovh
+    try {
+      const a   = encodeURIComponent(artist || 'unknown');
+      const t   = encodeURIComponent(title);
+      const res = await fetch(`https://api.lyrics.ovh/v1/${a}/${t}`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.lyrics && data.lyrics.trim()) {
+          song.lyrics = data.lyrics.trim();
+          pre.textContent = song.lyrics;
+          return;
+        }
+      }
+    } catch { /* all sources failed */ }
+
+    pre.textContent = `(Kein Liedtext gefunden für „${song.title}" – bitte manuell einfügen.)`;
   }
 
   closeModal() {
