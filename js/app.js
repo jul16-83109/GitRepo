@@ -684,44 +684,64 @@ class SetlistApp {
 
     const artist = (song.artist || '').trim();
     const title  = song.title.trim();
+    const log    = (msg) => { console.log(`[Lyrics] ${msg}`); pre.textContent = msg; };
 
     // 1. lrclib.net exact lookup
+    log(`1/3 lrclib.net exact: "${title}" / "${artist}"`);
     try {
-      const res = await fetch(
-        `https://lrclib.net/api/get?artist_name=${encodeURIComponent(artist)}&track_name=${encodeURIComponent(title)}`
-      );
+      const url = `https://lrclib.net/api/get?artist_name=${encodeURIComponent(artist)}&track_name=${encodeURIComponent(title)}`;
+      const res = await fetch(url);
+      console.log(`[Lyrics] lrclib exact → HTTP ${res.status}`);
       if (res.ok) {
         const data = await res.json();
+        console.log('[Lyrics] lrclib exact data:', data);
         const text = data.plainLyrics || data.syncedLyrics;
         if (text && text.trim()) { song.lyrics = text.trim(); pre.textContent = song.lyrics; return; }
+        log('lrclib exact: found but no lyrics text');
+      } else {
+        log(`1/3 lrclib exact: ${res.status} – trying search...`);
       }
-    } catch { }
+    } catch (e) { console.error('[Lyrics] lrclib exact error:', e); log(`1/3 lrclib exact: network error – ${e.message}`); }
 
-    // 2. lrclib.net free-text search (handles artist name mismatches)
+    // 2. lrclib.net free-text search
+    log(`2/3 lrclib.net search: "${title} ${artist}"`);
     try {
       const q   = encodeURIComponent(`${title}${artist ? ' ' + artist : ''}`);
       const res = await fetch(`https://lrclib.net/api/search?q=${q}`);
+      console.log(`[Lyrics] lrclib search → HTTP ${res.status}`);
       if (res.ok) {
         const results = await res.json();
+        console.log('[Lyrics] lrclib search results:', results);
         if (Array.isArray(results) && results.length > 0) {
           const text = results[0].plainLyrics || results[0].syncedLyrics;
           if (text && text.trim()) { song.lyrics = text.trim(); pre.textContent = song.lyrics; return; }
+          log(`2/3 lrclib search: ${results.length} results but no lyrics text`);
+        } else {
+          log('2/3 lrclib search: 0 results');
         }
+      } else {
+        log(`2/3 lrclib search: HTTP ${res.status}`);
       }
-    } catch { }
+    } catch (e) { console.error('[Lyrics] lrclib search error:', e); log(`2/3 lrclib search: network error – ${e.message}`); }
 
     // 3. lyrics.ovh fallback
+    log(`3/3 lyrics.ovh: "${artist}" / "${title}"`);
     try {
       const a   = encodeURIComponent(artist || 'unknown');
       const t   = encodeURIComponent(title);
       const res = await fetch(`https://api.lyrics.ovh/v1/${a}/${t}`);
+      console.log(`[Lyrics] lyrics.ovh → HTTP ${res.status}`);
       if (res.ok) {
         const data = await res.json();
+        console.log('[Lyrics] lyrics.ovh data:', data);
         if (data.lyrics && data.lyrics.trim()) { song.lyrics = data.lyrics.trim(); pre.textContent = song.lyrics; return; }
+        log('3/3 lyrics.ovh: responded but no lyrics field');
+      } else {
+        log(`3/3 lyrics.ovh: HTTP ${res.status}`);
       }
-    } catch { }
+    } catch (e) { console.error('[Lyrics] lyrics.ovh error:', e); log(`3/3 lyrics.ovh: network error – ${e.message}`); }
 
-    pre.textContent = `(Kein Liedtext online verfügbar für „${song.title}" – bitte hier einfügen.)`;
+    pre.textContent = `Kein Liedtext gefunden.\nSong: "${title}" | Artist: "${artist}"\nBitte manuell einfügen.`;
   }
 
   closeModal() {
