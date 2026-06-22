@@ -130,34 +130,44 @@ class PDFParser {
       .sort((a, b) => a[0].page !== b[0].page ? a[0].page - b[0].page : b[0].y - a[0].y);
   }
 
-  // Dispatcher for PDFs without a singer column
+  // Dispatcher for PDFs without a singer column.
+  // Always tries dash format first; falls back to titles-only.
   parseGenericFormat(rows) {
-    const dashRows = rows.filter(r => r.some(i => i.text === '-' || i.text === '–'));
-    if (dashRows.length >= 2) return this.parseDashFormat(rows);
-    // Last resort: each non-empty row is just a title
+    const songs = this.parseDashFormat(rows);
+    if (songs.length >= 2) return songs;
     return this.parseTitlesOnly(rows);
   }
 
-  // Format: "Title - Artist"  (dash separator, each line = one song)
+  // Format: "Title - Artist" per line.
+  // Works regardless of whether pdf.js outputs the dash as a separate token
+  // or embeds it inside a larger text span.
   parseDashFormat(rows) {
     const songs = [];
-    // Skip rows that look like headers/footers (no dash, suspiciously few/many tokens)
-    const HEADER_RE = /^(setlist|page|seite|datum|date|\d+$)/i;
+    const HEADER_RE = /^(setlist|seite|page|datum|date)/i;
+    // Matches hyphen-minus, en-dash, em-dash surrounded by spaces or at word boundary
+    const DASH_RE   = /\s+[-–—]\s+/;
 
     rows.forEach(row => {
       const sorted = [...row].sort((a, b) => a.x - b.x);
-      const dashIdx = sorted.findIndex(i => i.text === '-' || i.text === '–');
+      let title = '', artist = '';
 
-      if (dashIdx < 1) return; // no dash → likely a header/section label, skip
-
-      const titleTokens  = sorted.slice(0, dashIdx).map(i => i.text);
-      const artistTokens = sorted.slice(dashIdx + 1).map(i => i.text);
-
-      const title  = titleTokens.join(' ').trim();
-      const artist = artistTokens.join(' ').trim();
+      // Strategy 1: separate dash token  (e.g. ["Afterglow", "-", "Ed", "Sheeran"])
+      const tokIdx = sorted.findIndex(i => /^[-–—]$/.test(i.text));
+      if (tokIdx >= 1) {
+        title  = sorted.slice(0, tokIdx).map(i => i.text).join(' ').trim();
+        artist = sorted.slice(tokIdx + 1).map(i => i.text).join(' ').trim();
+      } else {
+        // Strategy 2: dash embedded inside one or more text spans
+        // Reconstruct the full line and split on " - " / " – " / " — "
+        const line = sorted.map(i => i.text).join(' ').trim();
+        const m    = line.match(/^(.+?)\s+[-–—]\s+(.+)$/);
+        if (!m) return; // no dash-separator at all → skip (header, section label, etc.)
+        title  = m[1].trim();
+        artist = m[2].trim();
+      }
 
       if (!title || title.length < 2) return;
-      if (HEADER_RE.test(title))      return;
+      if (HEADER_RE.test(title))       return;
 
       songs.push(this._makeSong(songs.length, title, artist, ''));
     });
@@ -165,7 +175,7 @@ class PDFParser {
     return songs;
   }
 
-  // Last-resort: treat every non-trivial row as a title with no artist
+  // Last-resort: each non-trivial row becomes a title with no artist
   parseTitlesOnly(rows) {
     const songs = [];
     const SKIP_RE = /^(setlist|page|seite|\d+\.?\s)/i;
