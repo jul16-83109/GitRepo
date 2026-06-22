@@ -439,6 +439,8 @@ class SetlistApp {
     const song = this.songs.find(s => s.id === songId);
     if (!song) return;
 
+    const hasLyrics = song.lyrics && !song.lyrics.startsWith('(Liedtext für');
+
     document.getElementById('modal-content').innerHTML = `
       <div class="modal-song-header">
         <h2>${song.title}</h2>
@@ -455,12 +457,43 @@ class SetlistApp {
         <div><strong>Situation:</strong>${song.situation.map(s => `<span class="badge badge-sit">${this.cap(s)}</span>`).join('')}</div>
       </div>
       <div class="modal-lyrics">
-        <h3>🎤 Liedtext</h3>
-        <pre>${song.lyrics}</pre>
+        <div class="lyrics-header">
+          <h3>🎤 Liedtext</h3>
+          <button class="lyrics-reload-btn" onclick="app.fetchLyrics(${songId})">↻ Neu laden</button>
+        </div>
+        <pre id="lyrics-pre-${songId}">${hasLyrics ? song.lyrics : '⏳ Suche Liedtext...'}</pre>
       </div>`;
 
     document.getElementById('song-modal').classList.add('open');
     document.body.style.overflow = 'hidden';
+
+    if (!hasLyrics) this.fetchLyrics(songId);
+  }
+
+  async fetchLyrics(songId) {
+    const song = this.songs.find(s => s.id === songId);
+    const pre  = document.getElementById(`lyrics-pre-${songId}`);
+    if (!song || !pre) return;
+
+    pre.textContent = '⏳ Suche Liedtext...';
+
+    try {
+      const artist = encodeURIComponent((song.artist || 'unknown').trim());
+      const title  = encodeURIComponent(song.title.trim());
+      const res    = await fetch(`https://api.lyrics.ovh/v1/${artist}/${title}`);
+
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+
+      if (data.lyrics && data.lyrics.trim()) {
+        song.lyrics  = data.lyrics.trim();
+        pre.textContent = song.lyrics;
+      } else {
+        pre.textContent = `(Kein Liedtext gefunden für "${song.title}")`;
+      }
+    } catch {
+      pre.textContent = `(Liedtext nicht verfügbar – bitte manuell einfügen.)`;
+    }
   }
 
   closeModal() {
