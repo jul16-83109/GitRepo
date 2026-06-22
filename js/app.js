@@ -2,13 +2,14 @@
 
 class SetlistApp {
   constructor() {
-    this.songs = [...window.SONGS]; // startet leer
+    this.songs = [...window.SONGS];
     this.moodKeywords = window.MOOD_KEYWORDS;
     this.situationKeywords = window.SITUATION_KEYWORDS;
-    this.userProfile = { moods: [], situations: [], audience: '', extras: '', step: 0 };
+    this.userProfile = { moods: [], situations: [], audience: '', count: 10, extras: '', step: 0 };
     this.generatedSetlist = [];
     this.pdfParser = new PDFParser();
     this.chatStarted = false;
+    this._enriching = false;
     this.init();
   }
 
@@ -17,12 +18,8 @@ class SetlistApp {
     this.setupEventListeners();
     this.updateSongCount();
 
-    setTimeout(() => {
-      this.botMessage('Willkommen beim Setlist-Generator! 🎵');
-    }, 400);
-    setTimeout(() => {
-      this.botMessage('Lade zuerst deine Setlist als PDF hoch – dann erstellen wir gemeinsam die perfekte Auswahl.');
-    }, 1200);
+    setTimeout(() => this.botMessage('Willkommen beim Setlist-Generator! 🎵'), 400);
+    setTimeout(() => this.botMessage('Lade zuerst deine Setlist als PDF hoch – dann erstellen wir gemeinsam die perfekte Auswahl.'), 1200);
   }
 
   setupEventListeners() {
@@ -30,7 +27,7 @@ class SetlistApp {
     const sendBtn = document.getElementById('send-btn');
 
     sendBtn.addEventListener('click', () => this.handleUserInput());
-    input.addEventListener('keypress', (e) => {
+    input.addEventListener('keypress', e => {
       if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); this.handleUserInput(); }
     });
 
@@ -38,20 +35,19 @@ class SetlistApp {
     const fileInput  = document.getElementById('pdf-input');
 
     uploadArea.addEventListener('click', () => fileInput.click());
-    uploadArea.addEventListener('dragover', (e) => { e.preventDefault(); uploadArea.classList.add('drag-over'); });
+    uploadArea.addEventListener('dragover',  e => { e.preventDefault(); uploadArea.classList.add('drag-over'); });
     uploadArea.addEventListener('dragleave', () => uploadArea.classList.remove('drag-over'));
-    uploadArea.addEventListener('drop', (e) => {
+    uploadArea.addEventListener('drop', e => {
       e.preventDefault();
       uploadArea.classList.remove('drag-over');
-      const file = e.dataTransfer.files[0];
-      if (file) this.handlePDFUpload(file);
+      if (e.dataTransfer.files[0]) this.handlePDFUpload(e.dataTransfer.files[0]);
     });
-    fileInput.addEventListener('change', (e) => {
+    fileInput.addEventListener('change', e => {
       if (e.target.files[0]) this.handlePDFUpload(e.target.files[0]);
     });
 
     document.getElementById('modal-close').addEventListener('click', () => this.closeModal());
-    document.getElementById('song-modal').addEventListener('click', (e) => {
+    document.getElementById('song-modal').addEventListener('click', e => {
       if (e.target === document.getElementById('song-modal')) this.closeModal();
     });
   }
@@ -62,7 +58,7 @@ class SetlistApp {
 
   async handlePDFUpload(file) {
     const uploadArea = document.getElementById('upload-area');
-    const statusEl  = document.getElementById('upload-status');
+    const statusEl   = document.getElementById('upload-status');
 
     uploadArea.classList.add('loading');
     statusEl.textContent = '⏳ PDF wird verarbeitet...';
@@ -72,21 +68,23 @@ class SetlistApp {
       if (!window.pdfjsLib) throw new Error('PDF-Bibliothek lädt noch – bitte kurz warten.');
 
       await this.pdfParser.init();
-      const importedSongs = await this.pdfParser.parseFile(file);
-
-      if (importedSongs.length === 0) throw new Error('Keine Songs erkannt. Bitte PDF-Format prüfen.');
+      const imported = await this.pdfParser.parseFile(file);
+      if (imported.length === 0) throw new Error('Keine Songs erkannt. Bitte PDF-Format prüfen.');
 
       const wasEmpty = this.songs.length === 0;
-      this.addImportedSongs(importedSongs);
+      this.addImportedSongs(imported);
 
-      statusEl.textContent = `✅ ${importedSongs.length} Songs importiert aus „${file.name}"`;
+      statusEl.textContent = `✅ ${imported.length} Songs importiert aus „${file.name}"`;
       statusEl.className = 'upload-status success';
 
-      this.botMessage(`🎵 ${this.songs.length} Songs geladen! Starten wir jetzt.`);
+      this.botMessage(`🎵 ${this.songs.length} Songs geladen! Ich hole jetzt Musikdaten aus dem Internet...`);
+
+      // Background enrichment via iTunes API – improves genre/energy/duration data
+      this.enrichSongsInBackground(statusEl);
 
       if (wasEmpty || !this.chatStarted) {
         this.chatStarted = true;
-        setTimeout(() => this.showStep(0), 1000);
+        setTimeout(() => this.showStep(0), 1200);
       }
 
     } catch (err) {
@@ -110,11 +108,112 @@ class SetlistApp {
   }
 
   // =====================================================================
+  // ITUNES METADATA ENRICHMENT
+  // Uses iTunes Search API (free, no key, CORS-enabled) to get real genre
+  // and duration data, then improves mood/energy classification.
+  // =====================================================================
+
+  async enrichSongsInBackground(statusEl) {
+    if (this._enriching) return;
+    this._enriching = true;
+
+    const toEnrich = this.songs.filter(s => !s._enriched);
+    if (toEnrich.length === 0) { this._enriching = false; return; }
+
+    let done = 0;
+    const BATCH = 5;   // concurrent requests
+    const DELAY = 120; // ms between batches (iTunes rate limit)
+
+    for (let i = 0; i < toEnrich.length; i += BATCH) {
+      const batch = toEnrich.slice(i, i + BATCH);
+
+      await Promise.allSettled(batch.map(async song => {
+        try {
+          const q   = encodeURIComponent(`${song.title} ${song.artist || ''}`);
+          const res = await fetch(`https://itunes.apple.com/search?term=${q}&entity=song&limit=1&media=music`);
+          if (!res.ok) throw new Error();
+          const data = await res.json();
+
+          if (data.results && data.results[0]) {
+            const t = data.results[0];
+            if (t.primaryGenreName) this.applyGenre(song, t.primaryGenreName);
+            if (t.trackTimeMillis)  {
+              const s = Math.round(t.trackTimeMillis / 1000);
+              song.duration = `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+            }
+          }
+        } catch { /* skip – enrichment is best-effort */ }
+        song._enriched = true;
+        done++;
+      }));
+
+      if (statusEl) {
+        statusEl.textContent = `📡 Musikdaten: ${done}/${toEnrich.length} Songs analysiert...`;
+        statusEl.className = 'upload-status loading';
+      }
+
+      if (i + BATCH < toEnrich.length) {
+        await new Promise(r => setTimeout(r, DELAY));
+      }
+    }
+
+    if (statusEl) {
+      statusEl.textContent = `✅ ${done} Songs mit Musikdaten angereichert`;
+      statusEl.className = 'upload-status success';
+    }
+    this._enriching = false;
+  }
+
+  applyGenre(song, genre) {
+    const g = genre.toLowerCase();
+
+    // Genre → energy adjustment (blend with existing keyword-derived energy)
+    const energyByGenre = [
+      [/metal|hard rock/,          9],
+      [/rock|punk|alternative/,    8],
+      [/dance|electronic|techno/,  8],
+      [/pop|schlager|volksmusik/,  6],
+      [/country|folk|bluegrass/,   5],
+      [/r&b|soul|funk/,            6],
+      [/blues|jazz/,               4],
+      [/classical|soundtrack/,     3],
+      [/singer.songwriter/,        4],
+    ];
+    for (const [re, e] of energyByGenre) {
+      if (re.test(g)) { song.energy = Math.round((song.energy + e) / 2); break; }
+    }
+
+    // Recalculate tempo from updated energy
+    song.tempo = Math.round(80 + (song.energy / 10) * 80);
+
+    // Genre → mood enrichment
+    const moodByGenre = [
+      [/metal|hard rock|punk/,   ['energiegeladen', 'kraftvoll']],
+      [/rock|alternative/,       ['energiegeladen']],
+      [/dance|electronic/,       ['ausgelassen']],
+      [/pop|schlager/,           ['feierlich', 'ausgelassen']],
+      [/country|folk/,           ['feierlich', 'entspannt']],
+      [/r&b|soul/,               ['romantisch']],
+      [/blues/,                  ['melancholisch']],
+      [/jazz|classical/,         ['entspannt', 'nachdenklich']],
+    ];
+    for (const [re, moods] of moodByGenre) {
+      if (re.test(g)) {
+        moods.forEach(m => { if (!song.mood.includes(m)) song.mood.unshift(m); });
+        break;
+      }
+    }
+
+    song._genre = genre;
+  }
+
+  // =====================================================================
   // CHAT
   // =====================================================================
 
   showStep(step) {
     this.userProfile.step = step;
+
     const steps = [
       {
         question: 'Für welchen Anlass spielt ihr heute?',
@@ -124,9 +223,9 @@ class SetlistApp {
           { label: '🍺 Bar / Kneipe',         value: 'bar'      },
           { label: '🎉 Party / Geburtstag',   value: 'party'    },
           { label: '💒 Hochzeit',             value: 'hochzeit' },
-          { label: '🌲 Outdoor / Natur',      value: 'outdoor'  }
+          { label: '🌲 Outdoor / Natur',      value: 'outdoor'  },
         ],
-        type: 'single'
+        type: 'single',
       },
       {
         question: 'Welche Energie wollt ihr erzeugen?',
@@ -136,25 +235,33 @@ class SetlistApp {
           { label: '❤️ Romantisch & Warm',     value: 'romantisch'     },
           { label: '🌿 Entspannt & Chill',     value: 'entspannt'      },
           { label: '🌙 Nachdenklich & Tief',   value: 'nachdenklich'   },
-          { label: '🔥 Ausgelassen & Wild',    value: 'ausgelassen'    }
+          { label: '🔥 Ausgelassen & Wild',    value: 'ausgelassen'    },
         ],
         type: 'multi',
-        hint: '(Mehrfachauswahl möglich)'
+        hint: '(Mehrfachauswahl möglich)',
       },
       {
         question: 'Wie groß ist euer Publikum?',
         options: [
           { label: '👥 Klein (unter 50)',    value: 'klein'  },
           { label: '👥👥 Mittel (50–200)',   value: 'mittel' },
-          { label: '🏟️ Groß (über 200)',    value: 'gross'  }
+          { label: '🏟️ Groß (über 200)',    value: 'gross'  },
         ],
-        type: 'single'
+        type: 'single',
       },
       {
-        question: 'Gibt es besondere Wünsche für heute?',
-        type: 'text',
-        placeholder: 'z.B. kein Ballade, viel Energie, bestimmter Song...'
-      }
+        question: 'Wie viele Songs soll die Setlist haben?',
+        options: [
+          { label: '5 Songs  ·  Zugabe / Encore',  value: '5'  },
+          { label: '8 Songs  ·  Kurzes Set',        value: '8'  },
+          { label: '10 Songs  ·  Standard Set',     value: '10' },
+          { label: '15 Songs  ·  Langes Set',       value: '15' },
+          { label: '20 Songs  ·  Full Show',        value: '20' },
+        ],
+        type: 'single',
+        hint: '(Oder eigene Zahl eintippen)',
+        allowText: true,
+      },
     ];
 
     if (step >= steps.length) { this.generateSetlist(); return; }
@@ -207,12 +314,16 @@ class SetlistApp {
         });
       }
       chatMessages.appendChild(optionsDiv);
-    } else if (stepData.type === 'text') {
+    }
+
+    // Text input is always shown for 'text' steps, and optionally for steps with allowText
+    if (stepData.type === 'text' || stepData.allowText) {
       const input = document.getElementById('chat-input');
-      input.placeholder = stepData.placeholder || 'Deine Antwort...';
+      input.placeholder = stepData.placeholder || (stepData.allowText ? 'Oder Zahl eingeben...' : 'Deine Antwort...');
       input.disabled = false;
       input.focus();
     }
+
     this.scrollChat();
   }
 
@@ -224,13 +335,22 @@ class SetlistApp {
       optionsDiv.querySelectorAll('button').forEach(b => b.disabled = true);
       optionsDiv.style.opacity = '0.5';
     }
-    if (step === 0)      this.userProfile.situations = Array.isArray(value) ? value : [value];
+
+    if      (step === 0) this.userProfile.situations = Array.isArray(value) ? value : [value];
     else if (step === 1) this.userProfile.moods      = Array.isArray(value) ? value : [value];
     else if (step === 2) this.userProfile.audience   = value;
+    else if (step === 3) this.userProfile.count      = parseInt(value, 10) || 10;
 
-    const responses = ['Super! 👍', 'Perfekt!', 'Verstanden!', 'Alles klar, ich generiere die Setlist...'];
+    const responses = [
+      'Super! 👍',
+      'Perfekt!',
+      'Verstanden!',
+      `${this.userProfile.count} Songs – alles klar! Ich erstelle die Setlist...`,
+    ];
     this.botMessage(responses[step] || 'Ok!');
-    setTimeout(() => this.showStep(step + 1), 600);
+    // Step 3 is the last step – go directly to generation
+    if (step === 3) setTimeout(() => this.generateSetlist(), 1200);
+    else setTimeout(() => this.showStep(step + 1), 600);
   }
 
   handleUserInput() {
@@ -239,12 +359,22 @@ class SetlistApp {
     if (!text) return;
     this.userMessage(text);
     input.value = '';
-    input.placeholder = 'Tippe hier...';
 
-    if (this.userProfile.step === 3) {
-      this.userProfile.extras = text;
-      this.botMessage('Wunderbar! Ich erstelle jetzt eure Setlist...');
-      setTimeout(() => this.generateSetlist(), 1000);
+    const step = this.userProfile.step;
+
+    // Step 3: count – user typed a custom number
+    if (step === 3) {
+      const n = parseInt(text, 10);
+      if (n > 0 && n <= 100) {
+        this.userProfile.count = n;
+        const optionsDiv = document.getElementById('options-3');
+        if (optionsDiv) { optionsDiv.querySelectorAll('button').forEach(b => b.disabled = true); optionsDiv.style.opacity = '0.5'; }
+        input.placeholder = 'Tippe hier...';
+        this.botMessage(`${n} Songs – alles klar! Ich erstelle die Setlist...`);
+        setTimeout(() => this.generateSetlist(), 1000);
+      } else {
+        this.botMessage('Bitte eine Zahl zwischen 1 und 100 eingeben.');
+      }
     }
   }
 
@@ -316,26 +446,58 @@ class SetlistApp {
   scoreSongs() {
     return this.songs.map(song => {
       let score = 0;
-      this.userProfile.moods.forEach(m => { if (song.mood.includes(m)) score += 3; });
+
+      // Mood match (genre-enriched mood scores higher)
+      this.userProfile.moods.forEach(m => {
+        if (song.mood[0] === m) score += 4;       // primary mood
+        else if (song.mood.includes(m)) score += 2;
+      });
+
+      // Situation match
       this.userProfile.situations.forEach(s => { if (song.situation.includes(s)) score += 2; });
 
+      // Genre bonus: iTunes-enriched songs score slightly higher (better data)
+      if (song._genre) score += 0.5;
+
+      // Extras text scan
       if (this.userProfile.extras) {
         const ext = this.userProfile.extras.toLowerCase();
         Object.entries(this.moodKeywords).forEach(([m, kws]) => {
           if (kws.some(k => ext.includes(k)) && song.mood.includes(m)) score += 1;
         });
-        if (ext.includes(song.title.toLowerCase())) score += 5;
+        if (ext.includes(song.title.toLowerCase())) score += 6;
+        if (song.artist && ext.includes(song.artist.toLowerCase())) score += 3;
       }
 
+      // Audience energy fit
       if (this.userProfile.audience === 'gross' && song.energy >= 8) score += 1;
       if (this.userProfile.audience === 'klein' && song.energy <= 5) score += 1;
 
-      score += (Math.random() - 0.5) * 1.5; // kleine Zufallskomponente
+      score += (Math.random() - 0.5) * 1.5;
       return { song, score };
     });
   }
 
+  // Builds a dynamic energy plan for count songs.
+  // Pattern: warm-up → build → peaks → breather → second wind → emotional → finale
+  buildEnergyPlan(count) {
+    const plan = [];
+    for (let i = 0; i < count; i++) {
+      const p = count <= 1 ? 1 : i / (count - 1); // 0.0 → 1.0
+      let bucket;
+      if      (p < 0.10) bucket = 'mid';   // opener: don't start too hard
+      else if (p < 0.55) bucket = 'high';  // main body: high energy
+      else if (p < 0.65) bucket = 'mid';   // mid-set breather
+      else if (p < 0.78) bucket = 'high';  // second wind
+      else if (p < 0.90) bucket = 'low';   // emotional / slow moment
+      else               bucket = 'high';  // finale: go out strong
+      plan.push(bucket);
+    }
+    return plan;
+  }
+
   selectSetlist(scored) {
+    const count = Math.max(1, this.userProfile.count || 10);
     scored.sort((a, b) => b.score - a.score);
 
     const buckets = { low: [], mid: [], high: [] };
@@ -345,33 +507,39 @@ class SetlistApp {
       else                       buckets.high.push({ song, score });
     });
 
-    // Energiekurve: mittel → hoch → hoch → tief → hoch
-    const structure = [
-      { b: 'mid', f: 'high' },
-      { b: 'high', f: 'mid' },
-      { b: 'high', f: 'mid' },
-      { b: 'low',  f: 'mid' },
-      { b: 'high', f: 'mid' }
-    ];
+    // Fallback priority when preferred bucket is empty
+    const fallbacks = {
+      high: ['high', 'mid', 'low'],
+      mid:  ['mid',  'high', 'low'],
+      low:  ['low',  'mid',  'high'],
+    };
 
-    const selected = [];
-    const usedIds  = new Set();
+    const plan      = this.buildEnergyPlan(count);
+    const selected  = [];
+    const usedIds   = new Set();
 
-    structure.forEach(({ b, f }) => {
-      const pool = [...(buckets[b].length > 0 ? buckets[b] : buckets[f])]
-        .filter(({ song }) => !usedIds.has(song.id))
-        .sort((a, z) => z.score - a.score);
-      if (pool.length > 0) { selected.push(pool[0].song); usedIds.add(pool[0].song.id); }
+    plan.forEach(bucket => {
+      for (const b of fallbacks[bucket]) {
+        const pool = buckets[b].filter(({ song }) => !usedIds.has(song.id));
+        if (pool.length === 0) continue;
+        pool.sort((a, z) => z.score - a.score);
+        selected.push(pool[0].song);
+        usedIds.add(pool[0].song.id);
+        break;
+      }
     });
 
-    // Auffüllen falls nötig
-    if (selected.length < 5) {
+    // Fill any remaining slots (can happen if all buckets depleted for a slot)
+    if (selected.length < count) {
       scored.forEach(({ song }) => {
-        if (selected.length < 5 && !usedIds.has(song.id)) { selected.push(song); usedIds.add(song.id); }
+        if (selected.length < count && !usedIds.has(song.id)) {
+          selected.push(song);
+          usedIds.add(song.id);
+        }
       });
     }
 
-    return selected.slice(0, 5);
+    return selected.slice(0, count);
   }
 
   renderSetlist() {
@@ -381,6 +549,16 @@ class SetlistApp {
     section.style.display = 'block';
     section.scrollIntoView({ behavior: 'smooth', block: 'start' });
 
+    // Calculate total duration
+    let totalSecs = 0;
+    this.generatedSetlist.forEach(s => {
+      const parts = (s.duration || '3:30').split(':');
+      totalSecs += parseInt(parts[0], 10) * 60 + parseInt(parts[1] || '0', 10);
+    });
+    const totalMin = Math.floor(totalSecs / 60);
+    const totalSec = totalSecs % 60;
+    const durationStr = `ca. ${totalMin}:${String(totalSec).padStart(2, '0')} min`;
+
     const header = document.createElement('div');
     header.className = 'setlist-header';
     header.innerHTML = `
@@ -388,21 +566,23 @@ class SetlistApp {
       <p class="setlist-meta">
         ${new Date().toLocaleDateString('de-DE')}
         ${this.userProfile.situations[0] ? ' · ' + this.cap(this.userProfile.situations[0]) : ''}
-        ${this.userProfile.moods[0]      ? ' · ' + this.cap(this.userProfile.moods[0]) : ''}
+        ${this.userProfile.moods[0]      ? ' · ' + this.cap(this.userProfile.moods[0])      : ''}
+        · ${this.generatedSetlist.length} Songs · ${durationStr}
       </p>`;
     container.appendChild(header);
 
     this.generatedSetlist.forEach((song, i) => {
       const card = document.createElement('div');
       card.className = 'setlist-card';
-      card.style.animationDelay = `${i * 0.1}s`;
+      card.style.animationDelay = `${i * 0.07}s`;
 
       let dots = '<div class="energy-dots">';
       for (let j = 1; j <= 10; j++) dots += `<div class="dot${j <= song.energy ? ' active' : ''}"></div>`;
       dots += '</div><small>Energie</small>';
 
-      const keyBadge  = song.key    ? `<span class="song-key">🎵 ${song.key}</span>` : '';
-      const moodBadge = song.mood.slice(0, 2).map(m => `<span class="badge">${this.cap(m)}</span>`).join('');
+      const keyBadge   = song.key    ? `<span class="song-key">🎵 ${song.key}</span>` : '';
+      const genreBadge = song._genre ? `<span class="song-genre">${song._genre}</span>` : '';
+      const moodBadge  = song.mood.slice(0, 2).map(m => `<span class="badge">${this.cap(m)}</span>`).join('');
 
       card.innerHTML = `
         <div class="song-number">${i + 1}</div>
@@ -412,9 +592,10 @@ class SetlistApp {
           <div class="song-meta">
             ${keyBadge}
             <span class="song-tempo">♩ ${song.tempo} BPM</span>
+            <span class="song-duration">⏱ ${song.duration}</span>
             ${song.singer ? `<span class="song-singer">🎤 ${song.singer}</span>` : ''}
           </div>
-          <div class="song-badges">${moodBadge}</div>
+          <div class="song-badges">${moodBadge}${genreBadge}</div>
         </div>
         <div class="song-right">
           <div class="energy-display">${dots}</div>
@@ -455,6 +636,7 @@ class SetlistApp {
       <div class="modal-badges">
         <div><strong>Stimmung:</strong>${song.mood.map(m => `<span class="badge">${this.cap(m)}</span>`).join('')}</div>
         <div><strong>Situation:</strong>${song.situation.map(s => `<span class="badge badge-sit">${this.cap(s)}</span>`).join('')}</div>
+        ${song._genre ? `<div><strong>Genre:</strong><span class="badge">${song._genre}</span></div>` : ''}
       </div>
       <div class="modal-lyrics">
         <div class="lyrics-header">
@@ -481,15 +663,14 @@ class SetlistApp {
       const artist = encodeURIComponent((song.artist || 'unknown').trim());
       const title  = encodeURIComponent(song.title.trim());
       const res    = await fetch(`https://api.lyrics.ovh/v1/${artist}/${title}`);
-
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      if (!res.ok) throw new Error();
       const data = await res.json();
 
       if (data.lyrics && data.lyrics.trim()) {
-        song.lyrics  = data.lyrics.trim();
+        song.lyrics = data.lyrics.trim();
         pre.textContent = song.lyrics;
       } else {
-        pre.textContent = `(Kein Liedtext gefunden für "${song.title}")`;
+        pre.textContent = `(Kein Liedtext gefunden für „${song.title}")`;
       }
     } catch {
       pre.textContent = `(Liedtext nicht verfügbar – bitte manuell einfügen.)`;
@@ -508,11 +689,12 @@ class SetlistApp {
   exportSetlist() {
     if (this.generatedSetlist.length === 0) { this.showToast('Erst Setlist generieren!'); return; }
     const date = new Date().toLocaleDateString('de-DE');
-    let text = `SETLIST\nDatum: ${date}\nAnlass: ${this.userProfile.situations.join(', ')}\nStimmung: ${this.userProfile.moods.join(', ')}\n${'─'.repeat(40)}\n\n`;
+    let text = `SETLIST – ${this.generatedSetlist.length} Songs\nDatum: ${date}\nAnlass: ${this.userProfile.situations.join(', ')}\nStimmung: ${this.userProfile.moods.join(', ')}\n${'─'.repeat(40)}\n\n`;
     this.generatedSetlist.forEach((s, i) => {
       text += `${i + 1}. ${s.title}`;
-      if (s.artist) text += `  (${s.artist})`;
-      text += `\n   Tonart: ${s.key || '–'}  |  Tempo: ${s.tempo} BPM  |  Sänger: ${s.singer || '–'}\n\n`;
+      if (s.artist)  text += `  (${s.artist})`;
+      if (s._genre)  text += `  [${s._genre}]`;
+      text += `\n   Tonart: ${s.key || '–'}  |  ${s.tempo} BPM  |  ${s.duration}  |  Sänger: ${s.singer || '–'}\n\n`;
     });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(new Blob([text], { type: 'text/plain;charset=utf-8' }));
@@ -522,7 +704,7 @@ class SetlistApp {
   }
 
   restart() {
-    this.userProfile = { moods: [], situations: [], audience: '', extras: '', step: 0 };
+    this.userProfile = { moods: [], situations: [], audience: '', count: 10, extras: '', step: 0 };
     this.generatedSetlist = [];
     document.getElementById('chat-messages').innerHTML = '';
     document.getElementById('setlist-section').style.display = 'none';

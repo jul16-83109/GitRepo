@@ -505,6 +505,18 @@ body {
   color: var(--green);
 }
 
+.song-genre {
+  background: rgba(100,120,200,0.12);
+  border: 1px solid rgba(100,120,200,0.25);
+  color: #8899dd;
+  font-size: 0.65rem;
+  font-weight: 500;
+  padding: 2px 8px;
+  border-radius: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
 .song-right {
   display: flex;
   flex-direction: column;
