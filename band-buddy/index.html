@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Band Buddy – Band Orga</title>
+  <meta name="description" content="Band Buddy – Setlists, Proben, Kalender, Rider und mehr" />
+  <link rel="stylesheet" href="css/style.css" />
+  <!-- QR Code library -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+</head>
+<body>
+
+  <!-- ── Sidebar Backdrop (mobile) ─────────────────────────────────────── -->
+  <div class="sidebar-backdrop" onclick="App.closeSidebar()"></div>
+
+  <!-- ══════════════════════════════════════════════════════════════════════
+       SIDEBAR
+  ══════════════════════════════════════════════════════════════════════════ -->
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <svg class="logo-icon-svg" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <!-- Guitar body -->
+        <ellipse cx="20" cy="26" rx="10" ry="11" fill="currentColor" opacity=".12" stroke="#e63946" stroke-width="1.5"/>
+        <!-- Guitar neck -->
+        <rect x="18.5" y="4" width="3" height="16" rx="1.5" fill="#e63946"/>
+        <!-- Strings -->
+        <line x1="19.2" y1="5" x2="19.2" y2="20" stroke="#f4a261" stroke-width=".8" opacity=".7"/>
+        <line x1="20.8" y1="5" x2="20.8" y2="20" stroke="#f4a261" stroke-width=".8" opacity=".7"/>
+        <!-- Sound hole -->
+        <circle cx="20" cy="27" r="3.5" stroke="#e63946" stroke-width="1.2" fill="none"/>
+        <!-- Tuners -->
+        <circle cx="16" cy="5" r="1.5" fill="#f4a261"/>
+        <circle cx="24" cy="5" r="1.5" fill="#f4a261"/>
+        <circle cx="16" cy="8.5" r="1.5" fill="#f4a261"/>
+        <circle cx="24" cy="8.5" r="1.5" fill="#f4a261"/>
+      </svg>
+      <div class="logo-text">
+        <span class="logo-name">Band Buddy</span>
+        <span class="logo-sub">Band Organizer</span>
+      </div>
+    </div>
+
+    <nav id="main-nav"></nav>
+
+    <div class="sidebar-footer">
+      Band Buddy &copy; 2025
+    </div>
+  </aside>
+
+  <!-- ══════════════════════════════════════════════════════════════════════
+       MAIN SHELL
+  ══════════════════════════════════════════════════════════════════════════ -->
+  <div class="app-shell">
+    <header class="topbar">
+      <button class="topbar-menu-btn" onclick="App.toggleSidebar()" aria-label="Menü">☰</button>
+      <span class="topbar-title">Band Buddy</span>
+      <div class="member-avatars" id="member-avatars"></div>
+    </header>
+
+    <main id="main-content">
+      <!-- Views are injected here by the router -->
+    </main>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════════════
+       MODAL
+  ══════════════════════════════════════════════════════════════════════════ -->
+  <div class="modal-overlay" id="modal-overlay" role="dialog" aria-modal="true">
+    <div class="modal-box" id="modal-body"></div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════════════
+       TOAST
+  ══════════════════════════════════════════════════════════════════════════ -->
+  <div id="toast" role="status" aria-live="polite"></div>
+
+  <!-- ══════════════════════════════════════════════════════════════════════
+       SCRIPTS
+  ══════════════════════════════════════════════════════════════════════════ -->
+  <script src="js/data.js"></script>
+  <script src="js/views/calendar.js"></script>
+  <script src="js/views/setlists.js"></script>
+  <script src="js/views/rehearsals.js"></script>
+  <script src="js/views/tasks.js"></script>
+  <script src="js/views/upload.js"></script>
+  <script src="js/views/bandrider.js"></script>
+  <script src="js/views/qrpage.js"></script>
+  <script src="js/app.js"></script>
+
+  <script>
+    // Render member avatars in topbar
+    document.addEventListener('DOMContentLoaded', () => {
+      const el = document.getElementById('member-avatars');
+      if (el) {
+        BB.seed();
+        el.innerHTML = BB.getAll('members').map(m =>
+          `<span class="member-avatar" style="background:${m.color}" title="${m.name} – ${m.role}">${m.name[0]}</span>`
+        ).join('');
+      }
+    });
+  </script>
+
+</body>
+</html>
