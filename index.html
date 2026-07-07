@@ -5,11 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Fogelwuid – sonst nix!</title>
   <meta name="description" content="Fogelwuid – Boarisch, Modern, Lustig und a bissl anders. Partyband aus Riedering am Simssee." />
-
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,400;0,600;0,700;0,800;0,900;1,700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
-
   <link rel="stylesheet" href="css/band.css" />
 </head>
 <body>
@@ -20,18 +15,19 @@
   <nav class="nav" id="nav">
     <div class="nav-inner">
       <a href="#hero" class="nav-logo">
-        <span class="nav-logo-text">Fogelwuid</span>
-        <span class="nav-logo-sub">sonst nix!</span>
+        <span class="nav-logo-w">Fogelwuid</span>
+        <span class="nav-logo-s">sonst nix!</span>
       </a>
-      <button class="nav-burger" id="nav-burger" aria-label="Menü öffnen">
+      <button class="burger" id="burger" aria-label="Menü" aria-expanded="false">
         <span></span><span></span><span></span>
       </button>
-      <ul class="nav-links" id="nav-links">
+      <ul class="nav-ul" id="nav-ul">
         <li><a href="#about">Über uns</a></li>
         <li><a href="#gigs">Konzerte</a></li>
         <li><a href="#gallery">Galerie</a></li>
-        <li><a href="#contact" class="nav-cta">Anfrage</a></li>
+        <li><a href="#contact" class="cta">Anfrage</a></li>
       </ul>
+      <button class="nav-theme" id="theme-btn" title="Theme wechseln" aria-label="Theme wechseln">☽</button>
     </div>
   </nav>
 
@@ -39,84 +35,111 @@
        HERO
   ════════════════════════════════════════════ -->
   <section class="hero" id="hero">
-    <div class="hero-bg">
-      <div class="hero-photo hero-photo-main" style="background-image: url('images/hero.jpg')">
-        <div class="hero-photo-placeholder">
-          <svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <rect x="8" y="16" width="48" height="36" rx="4" stroke="currentColor" stroke-width="2"/>
-            <circle cx="32" cy="33" r="9" stroke="currentColor" stroke-width="2"/>
-            <circle cx="32" cy="33" r="4" fill="currentColor" opacity="0.4"/>
-            <rect x="22" y="11" width="10" height="7" rx="2" fill="currentColor" opacity="0.5"/>
-          </svg>
-          <span>Foto einfügen</span>
-        </div>
+    <!--
+      Foto-Tipp: Entfernt die .hero-atm Div und ersetzt sie mit:
+      <div class="hero-photo" style="background-image:url('images/hero.jpg')">
+        <div class="hero-photo-overlay"></div>
       </div>
-      <div class="hero-overlay"></div>
-    </div>
-    <div class="hero-content">
-      <p class="hero-tagline-top">Riedering · Simssee · seit 2012</p>
-      <h1 class="hero-title">
-        <span class="hero-title-main">Fogel<em>wuid</em></span>
+    -->
+    <div class="hero-atm" aria-hidden="true"></div>
+    <div class="hero-body">
+      <span class="hero-eyebrow">Riedering · Simssee · Bayern · seit 2012</span>
+      <h1 class="hero-name">
+        <span class="ghost">Fogel</span><span class="solid">wuid</span>
       </h1>
-      <p class="hero-subtitle">Boarisch. Modern. Lustig.<br>und a bissl anders.</p>
-      <div class="hero-actions">
-        <a href="#gigs" class="btn btn-primary">Konzertdaten</a>
-        <a href="#about" class="btn btn-ghost">Mehr erfahren</a>
+      <p class="hero-sub">Boarisch. Modern. Lustig.<br>und a bissl anders.</p>
+      <div class="hero-acts">
+        <a href="#gigs" class="btn btn-fill">Konzertdaten</a>
+        <a href="#about" class="btn btn-out">Über die Band</a>
       </div>
     </div>
-    <a href="#about" class="hero-scroll" aria-label="Nach unten scrollen">
-      <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12l7 7 7-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    <a href="#about" class="hero-scroll" aria-label="Weiter scrollen">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+        <path d="M12 5v14M5 12l7 7 7-7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
     </a>
   </section>
 
   <!-- ══════════════════════════════════════════
+       STRIP
+  ════════════════════════════════════════════ -->
+  <div class="strip" aria-hidden="true">
+    <div class="strip-item">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M9 18V5l12-2v13" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="6" cy="18" r="3" fill="currentColor"/><circle cx="18" cy="16" r="3" fill="currentColor"/></svg>
+      Tanzlmusik
+    </div>
+    <div class="strip-item">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M3 18h18M3 12h18M3 6h18" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
+      Volksmusik
+    </div>
+    <div class="strip-item">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><polygon points="5,3 19,12 5,21" fill="currentColor" opacity=".7"/></svg>
+      Austropop
+    </div>
+    <div class="strip-item">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6z" fill="currentColor" opacity=".7"/></svg>
+      Partyhits
+    </div>
+    <div class="strip-item">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><rect x="2" y="7" width="4" height="12" rx="1" fill="currentColor" opacity=".7"/><rect x="9" y="4" width="4" height="15" rx="1" fill="currentColor" opacity=".9"/><rect x="16" y="2" width="4" height="17" rx="1" fill="currentColor"/></svg>
+      Rock &amp; Pop
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════
        ÜBER UNS
   ════════════════════════════════════════════ -->
-  <section class="section" id="about">
-    <div class="container">
-      <div class="section-label">Über uns</div>
+  <section class="sec" id="about">
+    <div class="wrap">
       <div class="about-grid">
         <div class="about-text">
-          <h2 class="section-title">Die Buam vom Simssee</h2>
-          <p>Fogelwuid sind fünf Musikanten aus Riedering am Simssee, die seit 2012 die Leute zum Tanzen bringen – mit echter Bayerischer Volksmusik, Oberkrainer, Austropop und zünftigen Partyhits.</p>
-          <p>Von der Tanzlmusik bis zum Rockklassiker, vom Wiesn-Hit bis zum modernen Partysong: Mit Witz, Herzblut und dem richtigen Gespür für Stimmung sorgen die Fogelwuid dafür, dass keine Sau sitzenbleibt.</p>
-          <div class="about-instruments">
-            <div class="instrument-item">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M9 18V5l12-2v13" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><circle cx="6" cy="18" r="3" stroke="currentColor" stroke-width="1.8"/><circle cx="18" cy="16" r="3" stroke="currentColor" stroke-width="1.8"/></svg>
+          <span class="eyebrow">Über uns</span>
+          <h2 class="heading">Die Buam vom Simssee</h2>
+          <p>Fünf Musikanten aus Riedering – und seit 2012 der Beweis, dass Volksmusik und Partyband kein Widerspruch sein müssen. Von der Ziach bis zur E-Gitarre, vom Boarischen bis zum Rockklassiker: Die Fogelwuid spielen alles, solange die Stimmung stimmt.</p>
+          <p>Ob Wiesn, Hochzeit, Volksfest oder Firmenfeier – mit Witz, Herzblut und dem richtigen Gespür für den richtigen Moment sorgen die Fogelwuid dafür, dass keine Sau sitzenbleibt. Versprochen.</p>
+          <div class="chips">
+            <div class="chip">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M9 18V5l12-2v13" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><circle cx="6" cy="18" r="2.5" stroke="currentColor" stroke-width="1.8"/><circle cx="18" cy="16" r="2.5" stroke="currentColor" stroke-width="1.8"/></svg>
               Ziach
             </div>
-            <div class="instrument-item">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z" stroke="currentColor" stroke-width="1.8"/><path d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v3M8 22h8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+            <div class="chip">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z" stroke="currentColor" stroke-width="1.8"/><path d="M19 10v2a7 7 0 0 1-14 0v-2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
               Gesang
             </div>
-            <div class="instrument-item">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><rect x="3" y="9" width="4" height="13" rx="1" stroke="currentColor" stroke-width="1.8"/><rect x="10" y="5" width="4" height="17" rx="1" stroke="currentColor" stroke-width="1.8"/><rect x="17" y="2" width="4" height="20" rx="1" stroke="currentColor" stroke-width="1.8"/></svg>
+            <div class="chip">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><rect x="3" y="8" width="4" height="13" rx="1" stroke="currentColor" stroke-width="1.8"/><rect x="10" y="4" width="4" height="17" rx="1" stroke="currentColor" stroke-width="1.8"/><rect x="17" y="1" width="4" height="20" rx="1" stroke="currentColor" stroke-width="1.8"/></svg>
               Schlagzeug
             </div>
-            <div class="instrument-item">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M6 3h12v18l-6-3-6 3V3z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
-              Gitarre
+            <div class="chip">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M6 3h12v18l-6-3-6 3V3z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>
+              Gitarre &amp; Bass
             </div>
-            <div class="instrument-item">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M12 3v18M8 7l8 0M6 12l12 0M8 17l8 0" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
-              Bass
-            </div>
-            <div class="instrument-item">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><ellipse cx="12" cy="12" rx="9" ry="5" stroke="currentColor" stroke-width="1.8"/><path d="M12 7v10M3 12h18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+            <div class="chip">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><ellipse cx="12" cy="9" rx="7" ry="4" stroke="currentColor" stroke-width="1.8"/><path d="M5 9v6c0 2.2 3.13 4 7 4s7-1.8 7-4V9" stroke="currentColor" stroke-width="1.8"/></svg>
               Blechblasinstrumente
+            </div>
+            <div class="chip">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><rect x="2" y="6" width="20" height="14" rx="2" stroke="currentColor" stroke-width="1.8"/><path d="M8 6V4a2 2 0 0 1 4 0v2M16 6V4a2 2 0 0 1 4 0" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+              Keyboard
             </div>
           </div>
         </div>
-        <div class="about-photo-wrap">
-          <div class="about-photo" style="background-image: url('images/band.jpg')">
-            <div class="photo-placeholder">
-              <svg width="48" height="48" viewBox="0 0 64 64" fill="none"><rect x="8" y="16" width="48" height="36" rx="4" stroke="currentColor" stroke-width="2"/><circle cx="32" cy="33" r="9" stroke="currentColor" stroke-width="2"/><circle cx="32" cy="33" r="4" fill="currentColor" opacity="0.4"/><rect x="22" y="11" width="10" height="7" rx="2" fill="currentColor" opacity="0.5"/></svg>
-              <span>Bandfoto einfügen</span>
+        <div class="about-vis reveal">
+          <div class="photo-box">
+            <!--
+              Bandfoto einfügen:
+              Legt das Bild als background-image auf .photo-box:
+              style="background-image:url('images/band.jpg')"
+              Dann die .ph-portrait Div entfernen.
+            -->
+            <div class="ph-portrait">
+              <svg width="44" height="44" viewBox="0 0 64 64" fill="none"><rect x="8" y="16" width="48" height="36" rx="4" stroke="currentColor" stroke-width="2"/><circle cx="32" cy="33" r="9" stroke="currentColor" stroke-width="2"/><circle cx="32" cy="33" r="4" fill="currentColor" opacity="0.4"/><rect x="22" y="11" width="10" height="7" rx="2" fill="currentColor" opacity="0.5"/></svg>
+              Bandfoto einfügen
             </div>
           </div>
-          <div class="about-badge">
-            <span class="badge-year">2012</span>
-            <span class="badge-label">Gegründet</span>
+          <div class="yr-badge">
+            <b>2012</b>
+            <small>Gegründet</small>
           </div>
         </div>
       </div>
@@ -124,141 +147,133 @@
   </section>
 
   <!-- ══════════════════════════════════════════
-       KONZERTE / GIGS
+       KONZERTE
   ════════════════════════════════════════════ -->
-  <section class="section section-dark" id="gigs">
-    <div class="container">
-      <div class="section-label">Konzerte</div>
-      <h2 class="section-title">Wann & Wo</h2>
-      <p class="section-lead">Wo die Fogelwuid spielen, wird g'feiert. Alle Auftritte auf einen Blick.</p>
+  <section class="sec sec-dark" id="gigs">
+    <div class="wrap">
+      <span class="eyebrow">Konzerte</span>
+      <h2 class="heading">Wann & Wo</h2>
+      <p class="lead">Wo die Fogelwuid spielen, wird g'feiert. Alle Auftritte auf einen Blick.</p>
 
-      <div class="gigs-list" id="gigs-list">
+      <div class="gigs-list">
 
-        <div class="gig-card">
-          <div class="gig-date">
-            <span class="gig-day">15</span>
-            <span class="gig-month">Jul</span>
-            <span class="gig-year">2026</span>
+        <div class="gig reveal">
+          <div class="gig-dt">
+            <span class="gig-dd">15</span>
+            <span class="gig-dm">Jul</span>
+            <span class="gig-dy">2026</span>
           </div>
+          <div class="gig-sep"></div>
           <div class="gig-info">
             <div class="gig-name">Sommerfest Riedering</div>
-            <div class="gig-location">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" fill="currentColor"/></svg>
+            <div class="gig-loc">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" fill="currentColor"/></svg>
               Riedering · Dorfplatz
             </div>
             <div class="gig-time">20:00 Uhr · Eintritt frei</div>
           </div>
-          <div class="gig-tag">Volksfest</div>
+          <span class="tag">Volksfest</span>
         </div>
 
-        <div class="gig-card">
-          <div class="gig-date">
-            <span class="gig-day">02</span>
-            <span class="gig-month">Aug</span>
-            <span class="gig-year">2026</span>
+        <div class="gig reveal">
+          <div class="gig-dt">
+            <span class="gig-dd">02</span>
+            <span class="gig-dm">Aug</span>
+            <span class="gig-dy">2026</span>
           </div>
+          <div class="gig-sep"></div>
           <div class="gig-info">
             <div class="gig-name">Seefest am Simssee</div>
-            <div class="gig-location">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" fill="currentColor"/></svg>
+            <div class="gig-loc">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" fill="currentColor"/></svg>
               Simssee · Strandbad
             </div>
             <div class="gig-time">19:00 Uhr · Abendkasse</div>
           </div>
-          <div class="gig-tag">Open Air</div>
+          <span class="tag">Open Air</span>
         </div>
 
-        <div class="gig-card">
-          <div class="gig-date">
-            <span class="gig-day">23</span>
+        <div class="gig reveal">
+          <div class="gig-dt">
+            <span class="gig-dd">23</span>
             <span class="gig-month">Aug</span>
-            <span class="gig-year">2026</span>
+            <span class="gig-dy">2026</span>
           </div>
+          <div class="gig-sep"></div>
           <div class="gig-info">
             <div class="gig-name">Volksfest Rosenheim</div>
-            <div class="gig-location">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" fill="currentColor"/></svg>
+            <div class="gig-loc">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" fill="currentColor"/></svg>
               Rosenheim · Festgelände
             </div>
             <div class="gig-time">21:00 Uhr</div>
           </div>
-          <div class="gig-tag">Volksfest</div>
+          <span class="tag">Volksfest</span>
         </div>
 
-        <div class="gig-card gig-card-private">
-          <div class="gig-date gig-date-private">
-            <svg width="28" height="28" viewBox="0 0 24 24" fill="none"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z" fill="currentColor" opacity="0.7"/></svg>
+        <div class="gig reveal" style="border-left-color:var(--t3);opacity:.72">
+          <div class="gig-dt" style="color:var(--t3)">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none"><path d="M12 22C6.48 22 2 17.52 2 12S6.48 2 12 2s10 4.48 10 10-4.48 10-10 10zm1-7h-2v-6h2v6zm0-8h-2V5h2v2z" fill="currentColor"/></svg>
           </div>
+          <div class="gig-sep"></div>
           <div class="gig-info">
-            <div class="gig-name">Hochzeiten & Privatfeiern</div>
-            <div class="gig-location">Auf Anfrage · Ganz Bayern</div>
-            <div class="gig-time">Verfügbarkeit anfragen</div>
+            <div class="gig-name" style="color:var(--t2)">Hochzeiten & Privatfeiern</div>
+            <div class="gig-loc" style="color:var(--t3)">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" fill="currentColor"/></svg>
+              Auf Anfrage · Ganz Bayern
+            </div>
+            <div class="gig-time">Termin anfragen</div>
           </div>
-          <a href="#contact" class="btn btn-sm">Anfragen</a>
+          <a href="#contact" class="btn btn-out" style="padding:7px 16px;font-size:.78rem">Anfragen</a>
         </div>
 
       </div>
-
-      <p class="gigs-note">Alle Termine sind Platzhalter – aktuelle Daten bitte eintragen.</p>
+      <p class="gigs-note">Termine sind Platzhalter – aktuelle Daten bitte eintragen.</p>
     </div>
   </section>
 
   <!-- ══════════════════════════════════════════
        GALERIE
   ════════════════════════════════════════════ -->
-  <section class="section" id="gallery">
-    <div class="container">
-      <div class="section-label">Galerie</div>
-      <h2 class="section-title">Bilder & Eindrücke</h2>
-      <p class="section-lead">Stimmung pur – von der Bühne bis hinter die Kulissen.</p>
+  <section class="sec" id="gallery">
+    <div class="wrap">
+      <span class="eyebrow">Galerie</span>
+      <h2 class="heading">Bilder & Eindrücke</h2>
+      <p class="lead">Stimmung pur – von der Bühne bis hinter die Kulissen.</p>
 
-      <div class="gallery-grid">
-        <div class="gallery-item gallery-item-large">
-          <div class="gallery-photo" style="background-image: url('images/gallery-1.jpg')">
-            <div class="gallery-placeholder">
-              <svg width="36" height="36" viewBox="0 0 64 64" fill="none"><rect x="8" y="16" width="48" height="36" rx="4" stroke="currentColor" stroke-width="2"/><circle cx="32" cy="33" r="9" stroke="currentColor" stroke-width="2"/><rect x="22" y="11" width="10" height="7" rx="2" fill="currentColor" opacity="0.5"/></svg>
-              <span>Foto 1</span>
-            </div>
+      <!--
+        Fotos einfügen: Ersetze die .gi-ph Divs durch:
+        <div class="gi-photo" style="background-image:url('images/gallery-1.jpg')"></div>
+      -->
+      <div class="gallery">
+        <div class="gi">
+          <div class="gi-ph">
+            <svg width="32" height="32" viewBox="0 0 64 64" fill="none"><rect x="8" y="16" width="48" height="36" rx="4" stroke="currentColor" stroke-width="2"/><circle cx="32" cy="33" r="9" stroke="currentColor" stroke-width="2"/><rect x="22" y="11" width="10" height="7" rx="2" fill="currentColor" opacity="0.5"/></svg>
+            Foto 1
           </div>
         </div>
-        <div class="gallery-item">
-          <div class="gallery-photo" style="background-image: url('images/gallery-2.jpg')">
-            <div class="gallery-placeholder">
-              <svg width="28" height="28" viewBox="0 0 64 64" fill="none"><rect x="8" y="16" width="48" height="36" rx="4" stroke="currentColor" stroke-width="2"/><circle cx="32" cy="33" r="9" stroke="currentColor" stroke-width="2"/><rect x="22" y="11" width="10" height="7" rx="2" fill="currentColor" opacity="0.5"/></svg>
-              <span>Foto 2</span>
-            </div>
+        <div class="gi">
+          <div class="gi-ph">
+            <svg width="26" height="26" viewBox="0 0 64 64" fill="none"><rect x="8" y="16" width="48" height="36" rx="4" stroke="currentColor" stroke-width="2"/><circle cx="32" cy="33" r="9" stroke="currentColor" stroke-width="2"/><rect x="22" y="11" width="10" height="7" rx="2" fill="currentColor" opacity="0.5"/></svg>
+            Foto 2
           </div>
         </div>
-        <div class="gallery-item">
-          <div class="gallery-photo" style="background-image: url('images/gallery-3.jpg')">
-            <div class="gallery-placeholder">
-              <svg width="28" height="28" viewBox="0 0 64 64" fill="none"><rect x="8" y="16" width="48" height="36" rx="4" stroke="currentColor" stroke-width="2"/><circle cx="32" cy="33" r="9" stroke="currentColor" stroke-width="2"/><rect x="22" y="11" width="10" height="7" rx="2" fill="currentColor" opacity="0.5"/></svg>
-              <span>Foto 3</span>
-            </div>
+        <div class="gi">
+          <div class="gi-ph">
+            <svg width="26" height="26" viewBox="0 0 64 64" fill="none"><rect x="8" y="16" width="48" height="36" rx="4" stroke="currentColor" stroke-width="2"/><circle cx="32" cy="33" r="9" stroke="currentColor" stroke-width="2"/><rect x="22" y="11" width="10" height="7" rx="2" fill="currentColor" opacity="0.5"/></svg>
+            Foto 3
           </div>
         </div>
-        <div class="gallery-item">
-          <div class="gallery-photo" style="background-image: url('images/gallery-4.jpg')">
-            <div class="gallery-placeholder">
-              <svg width="28" height="28" viewBox="0 0 64 64" fill="none"><rect x="8" y="16" width="48" height="36" rx="4" stroke="currentColor" stroke-width="2"/><circle cx="32" cy="33" r="9" stroke="currentColor" stroke-width="2"/><rect x="22" y="11" width="10" height="7" rx="2" fill="currentColor" opacity="0.5"/></svg>
-              <span>Foto 4</span>
-            </div>
+        <div class="gi">
+          <div class="gi-ph">
+            <svg width="26" height="26" viewBox="0 0 64 64" fill="none"><rect x="8" y="16" width="48" height="36" rx="4" stroke="currentColor" stroke-width="2"/><circle cx="32" cy="33" r="9" stroke="currentColor" stroke-width="2"/><rect x="22" y="11" width="10" height="7" rx="2" fill="currentColor" opacity="0.5"/></svg>
+            Foto 4
           </div>
         </div>
-        <div class="gallery-item">
-          <div class="gallery-photo" style="background-image: url('images/gallery-5.jpg')">
-            <div class="gallery-placeholder">
-              <svg width="28" height="28" viewBox="0 0 64 64" fill="none"><rect x="8" y="16" width="48" height="36" rx="4" stroke="currentColor" stroke-width="2"/><circle cx="32" cy="33" r="9" stroke="currentColor" stroke-width="2"/><rect x="22" y="11" width="10" height="7" rx="2" fill="currentColor" opacity="0.5"/></svg>
-              <span>Foto 5</span>
-            </div>
-          </div>
-        </div>
-        <div class="gallery-item gallery-item-wide">
-          <div class="gallery-photo" style="background-image: url('images/gallery-6.jpg')">
-            <div class="gallery-placeholder">
-              <svg width="36" height="36" viewBox="0 0 64 64" fill="none"><rect x="8" y="16" width="48" height="36" rx="4" stroke="currentColor" stroke-width="2"/><circle cx="32" cy="33" r="9" stroke="currentColor" stroke-width="2"/><rect x="22" y="11" width="10" height="7" rx="2" fill="currentColor" opacity="0.5"/></svg>
-              <span>Foto 6 – breites Format (Bühnenfoto)</span>
-            </div>
+        <div class="gi">
+          <div class="gi-ph">
+            <svg width="26" height="26" viewBox="0 0 64 64" fill="none"><rect x="8" y="16" width="48" height="36" rx="4" stroke="currentColor" stroke-width="2"/><circle cx="32" cy="33" r="9" stroke="currentColor" stroke-width="2"/><rect x="22" y="11" width="10" height="7" rx="2" fill="currentColor" opacity="0.5"/></svg>
+            Foto 5
           </div>
         </div>
       </div>
@@ -268,58 +283,58 @@
   <!-- ══════════════════════════════════════════
        KONTAKT
   ════════════════════════════════════════════ -->
-  <section class="section section-dark" id="contact">
-    <div class="container">
-      <div class="section-label">Kontakt</div>
-      <h2 class="section-title">Buchung & Anfragen</h2>
-      <p class="section-lead">Hochzeit, Volksfest, Firmenfeier oder Geburtstag – wir sind dabei!</p>
+  <section class="sec sec-dark" id="contact">
+    <div class="wrap">
+      <span class="eyebrow">Kontakt</span>
+      <h2 class="heading">Buchung & Anfragen</h2>
+      <p class="lead">Hochzeit, Volksfest, Firmenfeier – wir kommen. Einfach kurz melden.</p>
 
       <div class="contact-grid">
-        <div class="contact-info">
-          <div class="contact-item">
-            <div class="contact-icon">
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" stroke="currentColor" stroke-width="1.8"/><polyline points="22,6 12,13 2,6" stroke="currentColor" stroke-width="1.8"/></svg>
+        <div class="cinfo">
+          <div class="ci reveal">
+            <div class="ci-icon">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" stroke="currentColor" stroke-width="1.8"/><polyline points="22,6 12,13 2,6" stroke="currentColor" stroke-width="1.8"/></svg>
             </div>
             <div>
-              <div class="contact-label">E-Mail</div>
-              <a href="mailto:info@fogelwuid.de" class="contact-value">info@fogelwuid.de</a>
+              <div class="ci-label">E-Mail</div>
+              <a href="mailto:info@fogelwuid.de" class="ci-val">info@fogelwuid.de</a>
             </div>
           </div>
-          <div class="contact-item">
-            <div class="contact-icon">
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>
+          <div class="ci reveal">
+            <div class="ci-icon">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>
             </div>
             <div>
-              <div class="contact-label">Facebook</div>
-              <a href="https://www.facebook.com/Fogelwuid" target="_blank" rel="noopener" class="contact-value">facebook.com/Fogelwuid</a>
+              <div class="ci-label">Facebook</div>
+              <a href="https://www.facebook.com/Fogelwuid" target="_blank" rel="noopener" class="ci-val">facebook.com/Fogelwuid</a>
             </div>
           </div>
-          <div class="contact-item">
-            <div class="contact-icon">
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" fill="currentColor" opacity="0.8"/></svg>
+          <div class="ci reveal">
+            <div class="ci-icon">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" fill="currentColor" opacity=".8"/></svg>
             </div>
             <div>
-              <div class="contact-label">Heimat</div>
-              <div class="contact-value">Riedering, Simssee · Bayern</div>
+              <div class="ci-label">Heimat</div>
+              <div class="ci-val">Riedering · Simssee · Bayern</div>
             </div>
           </div>
         </div>
 
-        <form class="contact-form" id="contact-form">
-          <div class="form-row">
-            <div class="form-group">
-              <label for="contact-name">Name</label>
-              <input type="text" id="contact-name" placeholder="Dein Name" autocomplete="name" />
+        <form class="cform" id="cform">
+          <div class="frow">
+            <div class="fg">
+              <label for="fn">Name</label>
+              <input type="text" id="fn" placeholder="Dein Name" autocomplete="name" />
             </div>
-            <div class="form-group">
-              <label for="contact-email">E-Mail</label>
-              <input type="email" id="contact-email" placeholder="deine@email.de" autocomplete="email" />
+            <div class="fg">
+              <label for="fe">E-Mail</label>
+              <input type="email" id="fe" placeholder="deine@email.de" autocomplete="email" />
             </div>
           </div>
-          <div class="form-group">
-            <label for="contact-event">Anlass</label>
-            <select id="contact-event">
-              <option value="">Anlass wählen ...</option>
+          <div class="fg">
+            <label for="fev">Anlass</label>
+            <select id="fev">
+              <option value="">Anlass wählen …</option>
               <option>Hochzeit</option>
               <option>Volksfest / Wiesn</option>
               <option>Geburtstag / Jubiläum</option>
@@ -328,11 +343,11 @@
               <option>Sonstiges</option>
             </select>
           </div>
-          <div class="form-group">
-            <label for="contact-msg">Nachricht</label>
-            <textarea id="contact-msg" rows="4" placeholder="Wo, wann, was? Einfach kurz erzählen ..."></textarea>
+          <div class="fg">
+            <label for="fm">Nachricht</label>
+            <textarea id="fm" rows="4" placeholder="Wo, wann, was? Einfach kurz erzählen …"></textarea>
           </div>
-          <button type="submit" class="btn btn-primary btn-full">Anfrage absenden</button>
+          <button type="submit" class="btn btn-fill btn-full">Anfrage absenden</button>
         </form>
       </div>
     </div>
@@ -342,31 +357,35 @@
        FOOTER
   ════════════════════════════════════════════ -->
   <footer class="footer">
-    <div class="container">
-      <div class="footer-inner">
-        <div class="footer-brand">
-          <span class="footer-logo">Fogelwuid</span>
-          <span class="footer-tagline">sonst nix!</span>
+    <div class="wrap">
+      <div class="foot-inner">
+        <div>
+          <span class="foot-logo-w">Fogelwuid</span>
+          <span class="foot-logo-s">sonst nix!</span>
         </div>
-        <div class="footer-links">
+        <nav class="foot-nav" aria-label="Footer Navigation">
           <a href="#about">Über uns</a>
           <a href="#gigs">Konzerte</a>
           <a href="#gallery">Galerie</a>
           <a href="#contact">Kontakt</a>
-        </div>
-        <div class="footer-social">
+        </nav>
+        <div class="foot-soc">
           <a href="https://www.facebook.com/Fogelwuid" target="_blank" rel="noopener" aria-label="Facebook">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>
           </a>
         </div>
       </div>
-      <div class="footer-copy">
-        &copy; 2026 Fogelwuid · Riedering am Simssee
-        <span class="footer-sep">·</span>
+      <p class="foot-copy">
+        &copy; 2026 Fogelwuid
+        <span class="dot">·</span>
+        Riedering am Simssee
+        <span class="dot">·</span>
         <a href="mailto:info@fogelwuid.de">info@fogelwuid.de</a>
-      </div>
+      </p>
     </div>
   </footer>
+
+  <div id="toast" aria-live="polite"></div>
 
   <script src="js/band.js"></script>
 </body>
